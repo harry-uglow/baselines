@@ -19,7 +19,7 @@ def worker(remote, parent_remote, env_fn_wrapper):
                 ob = env.reset()
                 remote.send(ob)
             elif cmd == 'render':
-                remote.send(env.render(mode='rgb_array'))
+                remote.send(env.render(mode=data))
             elif cmd == 'close':
                 remote.close()
                 break
@@ -92,10 +92,10 @@ class SubprocVecEnv(VecEnv):
         for p in self.ps:
             p.join()
 
-    def get_images(self):
+    def get_images(self, mode='rgb_array'):
         self._assert_not_closed()
         for pipe in self.remotes:
-            pipe.send(('render', None))
+            pipe.send(('render', mode))
         imgs = [pipe.recv() for pipe in self.remotes]
         return imgs
 
