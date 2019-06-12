@@ -1,3 +1,6 @@
+from __future__ import division
+from __future__ import with_statement
+from __future__ import absolute_import
 import tensorflow as tf
 import numpy as np
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
@@ -18,7 +21,7 @@ def simple_test(env_fn, learn_fn, min_reward_fraction, n_trials=N_TRIALS):
         model = learn_fn(env)
         sum_rew = 0
         done = True
-        for i in range(n_trials):
+        for i in xrange(n_trials):
             if done:
                 obs = env.reset()
                 state = model.initial_state
@@ -28,9 +31,9 @@ def simple_test(env_fn, learn_fn, min_reward_fraction, n_trials=N_TRIALS):
                 a, v, _, _ = model.step(obs)
             obs, rew, done, _ = env.step(a)
             sum_rew += float(rew)
-        print("Reward in {} trials is {}".format(n_trials, sum_rew))
+        print u"Reward in {} trials is {}".format(n_trials, sum_rew)
         assert sum_rew > min_reward_fraction * n_trials, \
-            'sum of rewards {} is less than {} of the total number of trials {}'.format(sum_rew, min_reward_fraction, n_trials)
+            u'sum of rewards {} is less than {} of the total number of trials {}'.format(sum_rew, min_reward_fraction, n_trials)
 
 def reward_per_episode_test(env_fn, learn_fn, min_avg_reward, n_trials=N_EPISODES):
     env = DummyVecEnv([env_fn])
@@ -40,17 +43,17 @@ def reward_per_episode_test(env_fn, learn_fn, min_avg_reward, n_trials=N_EPISODE
         observations, actions, rewards = rollout(env, model, N_TRIALS)
         rewards = [sum(r) for r in rewards]
         avg_rew = sum(rewards) / N_TRIALS
-        print("Average reward in {} episodes is {}".format(n_trials, avg_rew))
+        print u"Average reward in {} episodes is {}".format(n_trials, avg_rew)
         assert avg_rew > min_avg_reward, \
-            'average reward in {} episodes ({}) is less than {}'.format(n_trials, avg_rew, min_avg_reward)
+            u'average reward in {} episodes ({}) is less than {}'.format(n_trials, avg_rew, min_avg_reward)
 
 def rollout(env, model, n_trials):
     rewards = []
     actions = []
     observations = []
-    for i in range(n_trials):
+    for i in xrange(n_trials):
         obs = env.reset()
-        state = model.initial_state if hasattr(model, 'initial_state') else None
+        state = model.initial_state if hasattr(model, u'initial_state') else None
         episode_rew = []
         episode_actions = []
         episode_obs = []

@@ -1,3 +1,6 @@
+from __future__ import division
+from __future__ import with_statement
+from __future__ import absolute_import
 import os
 import sys
 import shutil
@@ -8,6 +11,9 @@ import datetime
 import tempfile
 from collections import defaultdict
 from contextlib import contextmanager
+from io import open
+from itertools import imap
+from itertools import ifilter
 
 DEBUG = 10
 INFO = 20
@@ -26,11 +32,11 @@ class SeqWriter(object):
 
 class HumanOutputFormat(KVWriter, SeqWriter):
     def __init__(self, filename_or_file):
-        if isinstance(filename_or_file, str):
-            self.file = open(filename_or_file, 'wt')
+        if isinstance(filename_or_file, unicode):
+            self.file = open(filename_or_file, u'wt')
             self.own_file = True
         else:
-            assert hasattr(filename_or_file, 'read'), 'expected file or str, got %s'%filename_or_file
+            assert hasattr(filename_or_file, u'read'), u'expected file or str, got %s'%filename_or_file
             self.file = filename_or_file
             self.own_file = False
 
@@ -39,46 +45,46 @@ class HumanOutputFormat(KVWriter, SeqWriter):
         key2str = {}
         for (key, val) in sorted(kvs.items()):
             if isinstance(val, float):
-                valstr = '%-8.3g' % (val,)
+                valstr = u'%-8.3g' % (val,)
             else:
-                valstr = str(val)
+                valstr = unicode(val)
             key2str[self._truncate(key)] = self._truncate(valstr)
 
         # Find max widths
         if len(key2str) == 0:
-            print('WARNING: tried to write empty key-value dict')
+            print u'WARNING: tried to write empty key-value dict'
             return
         else:
-            keywidth = max(map(len, key2str.keys()))
-            valwidth = max(map(len, key2str.values()))
+            keywidth = max(imap(len, key2str.keys()))
+            valwidth = max(imap(len, key2str.values()))
 
         # Write out the data
-        dashes = '-' * (keywidth + valwidth + 7)
+        dashes = u'-' * (keywidth + valwidth + 7)
         lines = [dashes]
         for (key, val) in sorted(key2str.items(), key=lambda kv: kv[0].lower()):
-            lines.append('| %s%s | %s%s |' % (
+            lines.append(u'| %s%s | %s%s |' % (
                 key,
-                ' ' * (keywidth - len(key)),
+                u' ' * (keywidth - len(key)),
                 val,
-                ' ' * (valwidth - len(val)),
+                u' ' * (valwidth - len(val)),
             ))
         lines.append(dashes)
-        self.file.write('\n'.join(lines) + '\n')
+        self.file.write(u'\n'.join(lines) + u'\n')
 
         # Flush the output to the file
         self.file.flush()
 
     def _truncate(self, s):
         maxlen = 30
-        return s[:maxlen-3] + '...' if len(s) > maxlen else s
+        return s[:maxlen-3] + u'...' if len(s) > maxlen else s
 
     def writeseq(self, seq):
         seq = list(seq)
         for (i, elem) in enumerate(seq):
             self.file.write(elem)
             if i < len(seq) - 1: # add space unless this is the last one
-                self.file.write(' ')
-        self.file.write('\n')
+                self.file.write(u' ')
+        self.file.write(u'\n')
         self.file.flush()
 
     def close(self):
@@ -87,14 +93,14 @@ class HumanOutputFormat(KVWriter, SeqWriter):
 
 class JSONOutputFormat(KVWriter):
     def __init__(self, filename):
-        self.file = open(filename, 'wt')
+        self.file = open(filename, u'wt')
 
     def writekvs(self, kvs):
         for k, v in sorted(kvs.items()):
-            if hasattr(v, 'dtype'):
+            if hasattr(v, u'dtype'):
                 v = v.tolist()
                 kvs[k] = float(v)
-        self.file.write(json.dumps(kvs) + '\n')
+        self.file.write(json.dumps(kvs) + u'\n')
         self.file.flush()
 
     def close(self):
@@ -102,9 +108,9 @@ class JSONOutputFormat(KVWriter):
 
 class CSVOutputFormat(KVWriter):
     def __init__(self, filename):
-        self.file = open(filename, 'w+t')
+        self.file = open(filename, u'w+t')
         self.keys = []
-        self.sep = ','
+        self.sep = u','
 
     def writekvs(self, kvs):
         # Add our current row to the history
@@ -117,20 +123,20 @@ class CSVOutputFormat(KVWriter):
             self.file.seek(0)
             for (i, k) in enumerate(self.keys):
                 if i > 0:
-                    self.file.write(',')
+                    self.file.write(u',')
                 self.file.write(k)
-            self.file.write('\n')
+            self.file.write(u'\n')
             for line in lines[1:]:
                 self.file.write(line[:-1])
                 self.file.write(self.sep * len(extra_keys))
-                self.file.write('\n')
+                self.file.write(u'\n')
         for (i, k) in enumerate(self.keys):
             if i > 0:
-                self.file.write(',')
+                self.file.write(u',')
             v = kvs.get(k)
             if v is not None:
-                self.file.write(str(v))
-        self.file.write('\n')
+                self.file.write(unicode(v))
+        self.file.write(u'\n')
         self.file.flush()
 
     def close(self):
@@ -138,14 +144,14 @@ class CSVOutputFormat(KVWriter):
 
 
 class TensorBoardOutputFormat(KVWriter):
-    """
+    u"""
     Dumps key/value pairs into TensorBoard's numeric format.
     """
     def __init__(self, dir):
         os.makedirs(dir, exist_ok=True)
         self.dir = dir
         self.step = 1
-        prefix = 'events'
+        prefix = u'events'
         path = osp.join(osp.abspath(dir), prefix)
         import tensorflow as tf
         from tensorflow.python import pywrap_tensorflow
@@ -158,7 +164,7 @@ class TensorBoardOutputFormat(KVWriter):
 
     def writekvs(self, kvs):
         def summary_val(k, v):
-            kwargs = {'tag': k, 'simple_value': float(v)}
+            kwargs = {u'tag': k, u'simple_value': float(v)}
             return self.tf.Summary.Value(**kwargs)
         summary = self.tf.Summary(value=[summary_val(k, v) for k, v in kvs.items()])
         event = self.event_pb2.Event(wall_time=time.time(), summary=summary)
@@ -172,27 +178,27 @@ class TensorBoardOutputFormat(KVWriter):
             self.writer.Close()
             self.writer = None
 
-def make_output_format(format, ev_dir, log_suffix=''):
+def make_output_format(format, ev_dir, log_suffix=u''):
     os.makedirs(ev_dir, exist_ok=True)
-    if format == 'stdout':
+    if format == u'stdout':
         return HumanOutputFormat(sys.stdout)
-    elif format == 'log':
-        return HumanOutputFormat(osp.join(ev_dir, 'log%s.txt' % log_suffix))
-    elif format == 'json':
-        return JSONOutputFormat(osp.join(ev_dir, 'progress%s.json' % log_suffix))
-    elif format == 'csv':
-        return CSVOutputFormat(osp.join(ev_dir, 'progress%s.csv' % log_suffix))
-    elif format == 'tensorboard':
-        return TensorBoardOutputFormat(osp.join(ev_dir, 'tb%s' % log_suffix))
+    elif format == u'log':
+        return HumanOutputFormat(osp.join(ev_dir, u'log%s.txt' % log_suffix))
+    elif format == u'json':
+        return JSONOutputFormat(osp.join(ev_dir, u'progress%s.json' % log_suffix))
+    elif format == u'csv':
+        return CSVOutputFormat(osp.join(ev_dir, u'progress%s.csv' % log_suffix))
+    elif format == u'tensorboard':
+        return TensorBoardOutputFormat(osp.join(ev_dir, u'tb%s' % log_suffix))
     else:
-        raise ValueError('Unknown format specified: %s' % (format,))
+        raise ValueError(u'Unknown format specified: %s' % (format,))
 
 # ================================================================
 # API
 # ================================================================
 
 def logkv(key, val):
-    """
+    u"""
     Log a value of some diagnostic
     Call this once for each diagnostic quantity, each iteration
     If called many times, last value will be used.
@@ -200,20 +206,20 @@ def logkv(key, val):
     get_current().logkv(key, val)
 
 def logkv_mean(key, val):
-    """
+    u"""
     The same as logkv(), but if called many times, values averaged.
     """
     get_current().logkv_mean(key, val)
 
 def logkvs(d):
-    """
+    u"""
     Log a dictionary of key-value pairs
     """
     for (k, v) in d.items():
         logkv(k, v)
 
 def dumpkvs():
-    """
+    u"""
     Write all of the diagnostics from the current iteration
     """
     return get_current().dumpkvs()
@@ -222,8 +228,10 @@ def getkvs():
     return get_current().name2val
 
 
-def log(*args, level=INFO):
-    """
+def log(*args, **_3to2kwargs):
+    if 'level' in _3to2kwargs: level = _3to2kwargs['level']; del _3to2kwargs['level']
+    else: level = INFO
+    u"""
     Write the sequence of args, with no separators, to the console and output files (if you've configured an output file).
     """
     get_current().log(*args, level=level)
@@ -242,7 +250,7 @@ def error(*args):
 
 
 def set_level(level):
-    """
+    u"""
     Set logging threshold on current logger.
     """
     get_current().set_level(level)
@@ -251,7 +259,7 @@ def set_comm(comm):
     get_current().set_comm(comm)
 
 def get_dir():
-    """
+    u"""
     Get directory that log files are being written to.
     will be None if there is no output directory (i.e., if you didn't call start)
     """
@@ -262,7 +270,7 @@ dump_tabular = dumpkvs
 
 @contextmanager
 def profile_kv(scopename):
-    logkey = 'wait_' + scopename
+    logkey = u'wait_' + scopename
     tstart = time.time()
     try:
         yield
@@ -270,7 +278,7 @@ def profile_kv(scopename):
         get_current().name2val[logkey] += time.time() - tstart
 
 def profile(n):
-    """
+    u"""
     Usage:
     @profile("my_func")
     def my_func(): code
@@ -323,10 +331,10 @@ class Logger(object):
         else:
             from baselines.common import mpi_util
             d = mpi_util.mpi_weighted_mean(self.comm,
-                {name : (val, self.name2cnt.get(name, 1))
-                    for (name, val) in self.name2val.items()})
+                dict((name, (val, self.name2cnt.get(name, 1)))
+                    for (name, val) in self.name2val.items()))
             if self.comm.rank != 0:
-                d['dummy'] = 1 # so we don't get a warning about empty dict
+                d[u'dummy'] = 1 # so we don't get a warning about empty dict
         out = d.copy() # Return the dict for unit testing purposes
         for fmt in self.output_formats:
             if isinstance(fmt, KVWriter):
@@ -335,7 +343,9 @@ class Logger(object):
         self.name2cnt.clear()
         return out
 
-    def log(self, *args, level=INFO):
+    def log(self, *args, **_3to2kwargs):
+        if 'level' in _3to2kwargs: level = _3to2kwargs['level']; del _3to2kwargs['level']
+        else: level = INFO
         if self.level <= level:
             self._do_log(args)
 
@@ -359,40 +369,40 @@ class Logger(object):
     def _do_log(self, args):
         for fmt in self.output_formats:
             if isinstance(fmt, SeqWriter):
-                fmt.writeseq(map(str, args))
+                fmt.writeseq(imap(unicode, args))
 
 def configure(dir=None, format_strs=None, comm=None):
-    """
+    u"""
     If comm is provided, average all numerical stats across that comm
     """
     if dir is None:
-        dir = os.getenv('OPENAI_LOGDIR')
+        dir = os.getenv(u'OPENAI_LOGDIR')
     if dir is None:
         dir = osp.join(tempfile.gettempdir(),
-            datetime.datetime.now().strftime("openai-%Y-%m-%d-%H-%M-%S-%f"))
-    assert isinstance(dir, str)
+            datetime.datetime.now().strftime(u"openai-%Y-%m-%d-%H-%M-%S-%f"))
+    assert isinstance(dir, unicode)
     os.makedirs(dir, exist_ok=True)
 
-    log_suffix = ''
+    log_suffix = u''
     rank = 0
     # check environment variables here instead of importing mpi4py
     # to avoid calling MPI_Init() when this module is imported
-    for varname in ['PMI_RANK', 'OMPI_COMM_WORLD_RANK']:
+    for varname in [u'PMI_RANK', u'OMPI_COMM_WORLD_RANK']:
         if varname in os.environ:
             rank = int(os.environ[varname])
     if rank > 0:
-        log_suffix = "-rank%03i" % rank
+        log_suffix = u"-rank%03i" % rank
 
     if format_strs is None:
         if rank == 0:
-            format_strs = os.getenv('OPENAI_LOG_FORMAT', 'stdout,log,csv').split(',')
+            format_strs = os.getenv(u'OPENAI_LOG_FORMAT', u'stdout,log,csv').split(u',')
         else:
-            format_strs = os.getenv('OPENAI_LOG_FORMAT_MPI', 'log').split(',')
-    format_strs = filter(None, format_strs)
+            format_strs = os.getenv(u'OPENAI_LOG_FORMAT_MPI', u'log').split(u',')
+    format_strs = ifilter(None, format_strs)
     output_formats = [make_output_format(f, dir, log_suffix) for f in format_strs]
 
     Logger.CURRENT = Logger(dir=dir, output_formats=output_formats, comm=comm)
-    log('Logging to %s'%dir)
+    log(u'Logging to %s'%dir)
 
 def _configure_default_logger():
     configure()
@@ -402,7 +412,7 @@ def reset():
     if Logger.CURRENT is not Logger.DEFAULT:
         Logger.CURRENT.close()
         Logger.CURRENT = Logger.DEFAULT
-        log('Reset logger')
+        log(u'Reset logger')
 
 @contextmanager
 def scoped_configure(dir=None, format_strs=None, comm=None):
@@ -417,31 +427,31 @@ def scoped_configure(dir=None, format_strs=None, comm=None):
 # ================================================================
 
 def _demo():
-    info("hi")
-    debug("shouldn't appear")
+    info(u"hi")
+    debug(u"shouldn't appear")
     set_level(DEBUG)
-    debug("should appear")
-    dir = "/tmp/testlogging"
+    debug(u"should appear")
+    dir = u"/tmp/testlogging"
     if os.path.exists(dir):
         shutil.rmtree(dir)
     configure(dir=dir)
-    logkv("a", 3)
-    logkv("b", 2.5)
+    logkv(u"a", 3)
+    logkv(u"b", 2.5)
     dumpkvs()
-    logkv("b", -2.5)
-    logkv("a", 5.5)
+    logkv(u"b", -2.5)
+    logkv(u"a", 5.5)
     dumpkvs()
-    info("^^^ should see a = 5.5")
-    logkv_mean("b", -22.5)
-    logkv_mean("b", -44.4)
-    logkv("a", 5.5)
+    info(u"^^^ should see a = 5.5")
+    logkv_mean(u"b", -22.5)
+    logkv_mean(u"b", -44.4)
+    logkv(u"a", 5.5)
     dumpkvs()
-    info("^^^ should see b = -33.3")
+    info(u"^^^ should see b = -33.3")
 
-    logkv("b", -2.5)
+    logkv(u"b", -2.5)
     dumpkvs()
 
-    logkv("a", "longasslongasslongasslongasslongasslongassvalue")
+    logkv(u"a", u"longasslongasslongasslongasslongasslongassvalue")
     dumpkvs()
 
 
@@ -452,17 +462,17 @@ def _demo():
 def read_json(fname):
     import pandas
     ds = []
-    with open(fname, 'rt') as fh:
+    with open(fname, u'rt') as fh:
         for line in fh:
             ds.append(json.loads(line))
     return pandas.DataFrame(ds)
 
 def read_csv(fname):
     import pandas
-    return pandas.read_csv(fname, index_col=None, comment='#')
+    return pandas.read_csv(fname, index_col=None, comment=u'#')
 
 def read_tb(path):
-    """
+    u"""
     path : a tensorboard file OR a directory, where we will find all TB files
            of the form events.*
     """
@@ -471,11 +481,11 @@ def read_tb(path):
     from glob import glob
     import tensorflow as tf
     if osp.isdir(path):
-        fnames = glob(osp.join(path, "events.*"))
-    elif osp.basename(path).startswith("events."):
+        fnames = glob(osp.join(path, u"events.*"))
+    elif osp.basename(path).startswith(u"events."):
         fnames = [path]
     else:
-        raise NotImplementedError("Expected tensorboard file or directory containing them. Got %s"%path)
+        raise NotImplementedError(u"Expected tensorboard file or directory containing them. Got %s"%path)
     tag2pairs = defaultdict(list)
     maxstep = 0
     for fname in fnames:
@@ -494,5 +504,5 @@ def read_tb(path):
             data[step-1, colidx] = value
     return pandas.DataFrame(data, columns=tags)
 
-if __name__ == "__main__":
+if __name__ == u"__main__":
     _demo()

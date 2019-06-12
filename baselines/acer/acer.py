@@ -1,3 +1,6 @@
+from __future__ import division
+from __future__ import with_statement
+from __future__ import absolute_import
 import time
 import functools
 import numpy as np
@@ -16,6 +19,8 @@ from baselines.a2c.utils import EpisodeStats
 from baselines.a2c.utils import get_by_index, check_shape, avg_norm, gradient_add, q_explained_variance
 from baselines.acer.buffer import Buffer
 from baselines.acer.runner import Runner
+from itertools import imap
+from itertools import izip
 
 # remove last step
 def strip(var, nenvs, nsteps, flat = False):
@@ -23,7 +28,7 @@ def strip(var, nenvs, nsteps, flat = False):
     return seq_to_batch(vars[:-1], flat)
 
 def q_retrace(R, D, q_i, v, rho_i, nenvs, nsteps, gamma):
-    """
+    u"""
     Calculates q_retrace targets
 
     :param R: Rewards
@@ -41,7 +46,7 @@ def q_retrace(R, D, q_i, v, rho_i, nenvs, nsteps, gamma):
     v_final = vs[-1]
     qret = v_final
     qrets = []
-    for i in range(nsteps - 1, -1, -1):
+    for i in xrange(nsteps - 1, -1, -1):
         check_shape([qret, ds[i], rs[i], rho_bar[i], q_is[i], vs[i]], [[nenvs]] * 6)
         qret = rs[i] + gamma * qret * (1.0 - ds[i])
         qrets.append(qret)
@@ -73,16 +78,16 @@ class Model(object):
 
         step_ob_placeholder = tf.placeholder(dtype=ob_space.dtype, shape=(nenvs,) + ob_space.shape)
         train_ob_placeholder = tf.placeholder(dtype=ob_space.dtype, shape=(nenvs*(nsteps+1),) + ob_space.shape)
-        with tf.variable_scope('acer_model', reuse=tf.AUTO_REUSE):
+        with tf.variable_scope(u'acer_model', reuse=tf.AUTO_REUSE):
 
             step_model = policy(nbatch=nenvs, nsteps=1, observ_placeholder=step_ob_placeholder, sess=sess)
             train_model = policy(nbatch=nbatch, nsteps=nsteps, observ_placeholder=train_ob_placeholder, sess=sess)
 
 
-        params = find_trainable_variables("acer_model")
-        print("Params {}".format(len(params)))
+        params = find_trainable_variables(u"acer_model")
+        print u"Params {}".format(len(params))
         for var in params:
-            print(var)
+            print var
 
         # create polyak averaged model
         ema = tf.train.ExponentialMovingAverage(alpha)
@@ -90,10 +95,10 @@ class Model(object):
 
         def custom_getter(getter, *args, **kwargs):
             v = ema.average(getter(*args, **kwargs))
-            print(v.name)
+            print v.name
             return v
 
-        with tf.variable_scope("acer_model", custom_getter=custom_getter, reuse=True):
+        with tf.variable_scope(u"acer_model", custom_getter=custom_getter, reuse=True):
             polyak_model = policy(nbatch=nbatch, nsteps=nsteps, observ_placeholder=train_ob_placeholder, sess=sess)
 
         # Notation: (var) = batch variable, (var)s = seqeuence variable, (var)_i = variable index by action at step i
@@ -106,7 +111,7 @@ class Model(object):
         v = tf.reduce_sum(train_model_p * train_model.q, axis = -1) # shape is [nenvs * (nsteps + 1)]
 
         # strip off last step
-        f, f_pol, q = map(lambda var: strip(var, nenvs, nsteps), [train_model_p, polyak_model_p, train_model.q])
+        f, f_pol, q = imap(lambda var: strip(var, nenvs, nsteps), [train_model_p, polyak_model_p, train_model.q])
         # Get pi and q values for actions taken
         f_i = get_by_index(f, A)
         q_i = get_by_index(q, A)
@@ -169,7 +174,7 @@ class Model(object):
             grads_f = -g/(nenvs*nsteps) # These are turst region adjusted gradients wrt f ie statistics of policy pi
             grads_policy = tf.gradients(f, params, grads_f)
             grads_q = tf.gradients(loss_q * q_coef, params)
-            grads = [gradient_add(g1, g2, param) for (g1, g2, param) in zip(grads_policy, grads_q, params)]
+            grads = [gradient_add(g1, g2, param) for (g1, g2, param) in izip(grads_policy, grads_q, params)]
 
             avg_norm_grads_f = avg_norm(grads_f) * (nsteps * nenvs)
             norm_grads_q = tf.global_norm(grads_q)
@@ -179,7 +184,7 @@ class Model(object):
 
         if max_grad_norm is not None:
             grads, norm_grads = tf.clip_by_global_norm(grads, max_grad_norm)
-        grads = list(zip(grads, params))
+        grads = list(izip(grads, params))
         trainer = tf.train.RMSPropOptimizer(learning_rate=LR, decay=rprop_alpha, epsilon=rprop_epsilon)
         _opt_op = trainer.apply_gradients(grads)
 
@@ -191,13 +196,13 @@ class Model(object):
 
         # Ops/Summaries to run, and their names for logging
         run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads]
-        names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
-                     'norm_grads']
+        names_ops = [u'loss', u'loss_q', u'entropy', u'loss_policy', u'loss_f', u'loss_bc', u'explained_variance',
+                     u'norm_grads']
         if trust_region:
             run_ops = run_ops + [norm_grads_q, norm_grads_policy, avg_norm_grads_f, avg_norm_k, avg_norm_g, avg_norm_k_dot_g,
                                  avg_norm_adj]
-            names_ops = names_ops + ['norm_grads_q', 'norm_grads_policy', 'avg_norm_grads_f', 'avg_norm_k', 'avg_norm_g',
-                                     'avg_norm_k_dot_g', 'avg_norm_adj']
+            names_ops = names_ops + [u'norm_grads_q', u'norm_grads_policy', u'avg_norm_grads_f', u'avg_norm_k', u'avg_norm_g',
+                                     u'avg_norm_k_dot_g', u'avg_norm_adj']
 
         def train(obs, actions, rewards, dones, mus, states, masks, steps):
             cur_lr = lr.value_steps(steps)
@@ -226,7 +231,7 @@ class Model(object):
         tf.global_variables_initializer().run(session=sess)
 
 
-class Acer():
+class Acer(object):
     def __init__(self, runner, model, buffer, log_interval):
         self.runner = runner
         self.model = model
@@ -259,24 +264,24 @@ class Acer():
         names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps)
 
         if on_policy and (int(steps/runner.nbatch) % self.log_interval == 0):
-            logger.record_tabular("total_timesteps", steps)
-            logger.record_tabular("fps", int(steps/(time.time() - self.tstart)))
+            logger.record_tabular(u"total_timesteps", steps)
+            logger.record_tabular(u"fps", int(steps/(time.time() - self.tstart)))
             # IMP: In EpisodicLife env, during training, we get done=True at each loss of life, not just at the terminal state.
             # Thus, this is mean until end of life, not end of episode.
             # For true episode rewards, see the monitor files in the log folder.
-            logger.record_tabular("mean_episode_length", self.episode_stats.mean_length())
-            logger.record_tabular("mean_episode_reward", self.episode_stats.mean_reward())
-            for name, val in zip(names_ops, values_ops):
+            logger.record_tabular(u"mean_episode_length", self.episode_stats.mean_length())
+            logger.record_tabular(u"mean_episode_reward", self.episode_stats.mean_reward())
+            for name, val in izip(names_ops, values_ops):
                 logger.record_tabular(name, float(val))
             logger.dump_tabular()
 
 
 def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=0.5, ent_coef=0.01,
-          max_grad_norm=10, lr=7e-4, lrschedule='linear', rprop_epsilon=1e-5, rprop_alpha=0.99, gamma=0.99,
+          max_grad_norm=10, lr=7e-4, lrschedule=u'linear', rprop_epsilon=1e-5, rprop_alpha=0.99, gamma=0.99,
           log_interval=100, buffer_size=50000, replay_ratio=4, replay_start=10000, c=10.0,
           trust_region=True, alpha=0.99, delta=1, load_path=None, **network_kwargs):
 
-    '''
+    u'''
     Main entrypoint for ACER (Actor-Critic with Experience Replay) algorithm (https://arxiv.org/pdf/1611.01224.pdf)
     Train an agent with given network architecture on a given environment using ACER.
 
@@ -340,8 +345,8 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
 
     '''
 
-    print("Running Acer Simple")
-    print(locals())
+    print u"Running Acer Simple"
+    print locals()
     set_global_seeds(seed)
     if not isinstance(env, VecFrameStack):
         env = VecFrameStack(env, 1)
@@ -367,11 +372,11 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
     acer = Acer(runner, model, buffer, log_interval)
     acer.tstart = time.time()
 
-    for acer.steps in range(0, total_timesteps, nbatch): #nbatch samples, 1 on_policy call and multiple off-policy calls
+    for acer.steps in xrange(0, total_timesteps, nbatch): #nbatch samples, 1 on_policy call and multiple off-policy calls
         acer.call(on_policy=True)
         if replay_ratio > 0 and buffer.has_atleast(replay_start):
             n = np.random.poisson(replay_ratio)
-            for _ in range(n):
+            for _ in xrange(n):
                 acer.call(on_policy=False)  # no simulation steps in this
 
     return model

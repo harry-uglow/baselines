@@ -1,3 +1,6 @@
+from __future__ import with_statement
+from __future__ import division
+from __future__ import absolute_import
 import matplotlib.pyplot as plt
 import os.path as osp
 import json
@@ -7,9 +10,11 @@ import pandas
 from collections import defaultdict, namedtuple
 from baselines.bench import monitor
 from baselines.logger import read_json, read_csv
+from io import open
+from itertools import imap
 
-def smooth(y, radius, mode='two_sided', valid_only=False):
-    '''
+def smooth(y, radius, mode=u'two_sided', valid_only=False):
+    u'''
     Smooth signal y, where radius is determines the size of the window
 
     mode='twosided':
@@ -20,24 +25,24 @@ def smooth(y, radius, mode='two_sided', valid_only=False):
     valid_only: put nan in entries where the full-sized window is not available
 
     '''
-    assert mode in ('two_sided', 'causal')
+    assert mode in (u'two_sided', u'causal')
     if len(y) < 2*radius+1:
         return np.ones_like(y) * y.mean()
-    elif mode == 'two_sided':
+    elif mode == u'two_sided':
         convkernel = np.ones(2 * radius+1)
-        out = np.convolve(y, convkernel,mode='same') / np.convolve(np.ones_like(y), convkernel, mode='same')
+        out = np.convolve(y, convkernel,mode=u'same') / np.convolve(np.ones_like(y), convkernel, mode=u'same')
         if valid_only:
             out[:radius] = out[-radius:] = np.nan
-    elif mode == 'causal':
+    elif mode == u'causal':
         convkernel = np.ones(radius)
-        out = np.convolve(y, convkernel,mode='full') / np.convolve(np.ones_like(y), convkernel, mode='full')
+        out = np.convolve(y, convkernel,mode=u'full') / np.convolve(np.ones_like(y), convkernel, mode=u'full')
         out = out[:-radius+1]
         if valid_only:
             out[:radius] = np.nan
     return out
 
 def one_sided_ema(xolds, yolds, low=None, high=None, n=512, decay_steps=1., low_counts_threshold=1e-8):
-    '''
+    u'''
     perform one-sided (causal) EMA (exponential moving average)
     smoothing and resampling to an even grid with n points.
     Does not do extrapolation, so we assume
@@ -69,13 +74,13 @@ def one_sided_ema(xolds, yolds, low=None, high=None, n=512, decay_steps=1., low_
     low = xolds[0] if low is None else low
     high = xolds[-1] if high is None else high
 
-    assert xolds[0] <= low, 'low = {} < xolds[0] = {} - extrapolation not permitted!'.format(low, xolds[0])
-    assert xolds[-1] >= high, 'high = {} > xolds[-1] = {}  - extrapolation not permitted!'.format(high, xolds[-1])
-    assert len(xolds) == len(yolds), 'length of xolds ({}) and yolds ({}) do not match!'.format(len(xolds), len(yolds))
+    assert xolds[0] <= low, u'low = {} < xolds[0] = {} - extrapolation not permitted!'.format(low, xolds[0])
+    assert xolds[-1] >= high, u'high = {} > xolds[-1] = {}  - extrapolation not permitted!'.format(high, xolds[-1])
+    assert len(xolds) == len(yolds), u'length of xolds ({}) and yolds ({}) do not match!'.format(len(xolds), len(yolds))
 
 
-    xolds = xolds.astype('float64')
-    yolds = yolds.astype('float64')
+    xolds = xolds.astype(u'float64')
+    yolds = yolds.astype(u'float64')
 
     luoi = 0 # last unused old index
     sum_y = 0.
@@ -85,7 +90,7 @@ def one_sided_ema(xolds, yolds, low=None, high=None, n=512, decay_steps=1., low_
     interstep_decay = np.exp(- 1. / decay_steps)
     sum_ys = np.zeros_like(xnews)
     count_ys = np.zeros_like(xnews)
-    for i in range(n):
+    for i in xrange(n):
         xnew = xnews[i]
         sum_y *= interstep_decay
         count_y *= interstep_decay
@@ -109,7 +114,7 @@ def one_sided_ema(xolds, yolds, low=None, high=None, n=512, decay_steps=1., low_
     return xnews, ys, count_ys
 
 def symmetric_ema(xolds, yolds, low=None, high=None, n=512, decay_steps=1., low_counts_threshold=1e-8):
-    '''
+    u'''
     perform symmetric EMA (exponential moving average)
     smoothing and resampling to an even grid with n points.
     Does not do extrapolation, so we assume
@@ -146,11 +151,11 @@ def symmetric_ema(xolds, yolds, low=None, high=None, n=512, decay_steps=1., low_
     ys[count_ys < low_counts_threshold] = np.nan
     return xs, ys, count_ys
 
-Result = namedtuple('Result', 'monitor progress dirname metadata')
-Result.__new__.__defaults__ = (None,) * len(Result._fields)
+Result = namedtuple(u'Result', u'monitor progress dirname metadata')
+Result.__new__.func_defaults = (None,) * len(Result._fields)
 
 def load_results(root_dir_or_dirs, enable_progress=True, enable_monitor=True, verbose=False):
-    '''
+    u'''
     load summaries of runs from a list of directories (including subdirectories)
     Arguments:
 
@@ -169,59 +174,59 @@ def load_results(root_dir_or_dirs, enable_progress=True, enable_monitor=True, ve
          - progress - if enable_progress is True, this field contains pandas dataframe with loaded progress.csv file
     '''
     import re
-    if isinstance(root_dir_or_dirs, str):
+    if isinstance(root_dir_or_dirs, unicode):
         rootdirs = [osp.expanduser(root_dir_or_dirs)]
     else:
         rootdirs = [osp.expanduser(d) for d in root_dir_or_dirs]
     allresults = []
     for rootdir in rootdirs:
-        assert osp.exists(rootdir), "%s doesn't exist"%rootdir
+        assert osp.exists(rootdir), u"%s doesn't exist"%rootdir
         for dirname, dirs, files in os.walk(rootdir):
-            if '-proc' in dirname:
+            if u'-proc' in dirname:
                 files[:] = []
                 continue
-            monitor_re = re.compile(r'(\d+\.)?(\d+\.)?monitor\.csv')
-            if set(['metadata.json', 'monitor.json', 'progress.json', 'progress.csv']).intersection(files) or \
+            monitor_re = re.compile(ur'(\d+\.)?(\d+\.)?monitor\.csv')
+            if set([u'metadata.json', u'monitor.json', u'progress.json', u'progress.csv']).intersection(files) or \
                any([f for f in files if monitor_re.match(f)]):  # also match monitor files like 0.1.monitor.csv
                 # used to be uncommented, which means do not go deeper than current directory if any of the data files
                 # are found
                 # dirs[:] = []
-                result = {'dirname' : dirname}
-                if "metadata.json" in files:
-                    with open(osp.join(dirname, "metadata.json"), "r") as fh:
-                        result['metadata'] = json.load(fh)
-                progjson = osp.join(dirname, "progress.json")
-                progcsv = osp.join(dirname, "progress.csv")
+                result = {u'dirname' : dirname}
+                if u"metadata.json" in files:
+                    with open(osp.join(dirname, u"metadata.json"), u"r") as fh:
+                        result[u'metadata'] = json.load(fh)
+                progjson = osp.join(dirname, u"progress.json")
+                progcsv = osp.join(dirname, u"progress.csv")
                 if enable_progress:
                     if osp.exists(progjson):
-                        result['progress'] = pandas.DataFrame(read_json(progjson))
+                        result[u'progress'] = pandas.DataFrame(read_json(progjson))
                     elif osp.exists(progcsv):
                         try:
-                            result['progress'] = read_csv(progcsv)
+                            result[u'progress'] = read_csv(progcsv)
                         except pandas.errors.EmptyDataError:
-                            print('skipping progress file in ', dirname, 'empty data')
+                            print u'skipping progress file in ', dirname, u'empty data'
                     else:
-                        if verbose: print('skipping %s: no progress file'%dirname)
+                        if verbose: print u'skipping %s: no progress file'%dirname
 
                 if enable_monitor:
                     try:
-                        result['monitor'] = pandas.DataFrame(monitor.load_results(dirname))
+                        result[u'monitor'] = pandas.DataFrame(monitor.load_results(dirname))
                     except monitor.LoadMonitorResultsError:
-                        print('skipping %s: no monitor files'%dirname)
-                    except Exception as e:
-                        print('exception loading monitor file in %s: %s'%(dirname, e))
+                        print u'skipping %s: no monitor files'%dirname
+                    except Exception, e:
+                        print u'exception loading monitor file in %s: %s'%(dirname, e)
 
-                if result.get('monitor') is not None or result.get('progress') is not None:
+                if result.get(u'monitor') is not None or result.get(u'progress') is not None:
                     allresults.append(Result(**result))
                     if verbose:
-                        print('successfully loaded %s'%dirname)
+                        print u'successfully loaded %s'%dirname
 
-    if verbose: print('loaded %i results'%len(allresults))
+    if verbose: print u'loaded %i results'%len(allresults)
     return allresults
 
-COLORS = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'purple', 'pink',
-        'brown', 'orange', 'teal',  'lightblue', 'lime', 'lavender', 'turquoise',
-        'darkgreen', 'tan', 'salmon', 'gold',  'darkred', 'darkblue']
+COLORS = [u'blue', u'green', u'red', u'cyan', u'magenta', u'yellow', u'black', u'purple', u'pink',
+        u'brown', u'orange', u'teal',  u'lightblue', u'lime', u'lavender', u'turquoise',
+        u'darkgreen', u'tan', u'salmon', u'gold',  u'darkred', u'darkblue']
 
 
 def default_xy_fn(r):
@@ -233,24 +238,34 @@ def default_split_fn(r):
     import re
     # match name between slash and -<digits> at the end of the string
     # (slash in the beginning or -<digits> in the end or either may be missing)
-    match = re.search(r'[^/-]+(?=(-\d+)?\Z)', r.dirname)
+    match = re.search(ur'[^/-]+(?=(-\d+)?\Z)', r.dirname)
     if match:
         return match.group(0)
 
 def plot_results(
-    allresults, *,
-    xy_fn=default_xy_fn,
-    split_fn=default_split_fn,
-    group_fn=default_split_fn,
-    average_group=False,
-    shaded_std=True,
-    shaded_err=True,
-    figsize=None,
-    legend_outside=False,
-    resample=0,
-    smooth_step=1.0
+    allresults, **_3to2kwargs
 ):
-    '''
+    if 'smooth_step' in _3to2kwargs: smooth_step = _3to2kwargs['smooth_step']; del _3to2kwargs['smooth_step']
+    else: smooth_step = 1.0
+    if 'resample' in _3to2kwargs: resample = _3to2kwargs['resample']; del _3to2kwargs['resample']
+    else: resample = 0
+    if 'legend_outside' in _3to2kwargs: legend_outside = _3to2kwargs['legend_outside']; del _3to2kwargs['legend_outside']
+    else: legend_outside = False
+    if 'figsize' in _3to2kwargs: figsize = _3to2kwargs['figsize']; del _3to2kwargs['figsize']
+    else: figsize = None
+    if 'shaded_err' in _3to2kwargs: shaded_err = _3to2kwargs['shaded_err']; del _3to2kwargs['shaded_err']
+    else: shaded_err = True
+    if 'shaded_std' in _3to2kwargs: shaded_std = _3to2kwargs['shaded_std']; del _3to2kwargs['shaded_std']
+    else: shaded_std = True
+    if 'average_group' in _3to2kwargs: average_group = _3to2kwargs['average_group']; del _3to2kwargs['average_group']
+    else: average_group = False
+    if 'group_fn' in _3to2kwargs: group_fn = _3to2kwargs['group_fn']; del _3to2kwargs['group_fn']
+    else: group_fn = default_split_fn
+    if 'split_fn' in _3to2kwargs: split_fn = _3to2kwargs['split_fn']; del _3to2kwargs['split_fn']
+    else: split_fn = default_split_fn
+    if 'xy_fn' in _3to2kwargs: xy_fn = _3to2kwargs['xy_fn']; del _3to2kwargs['xy_fn']
+    else: xy_fn = default_xy_fn
+    u'''
     Plot multiple Results objects
 
     xy_fn: function Result -> x,y           - function that converts results objects into tuple of x and y values.
@@ -292,14 +307,14 @@ def plot_results(
 
     '''
 
-    if split_fn is None: split_fn = lambda _ : ''
-    if group_fn is None: group_fn = lambda _ : ''
+    if split_fn is None: split_fn = lambda _ : u''
+    if group_fn is None: group_fn = lambda _ : u''
     sk2r = defaultdict(list) # splitkey2results
     for result in allresults:
         splitkey = split_fn(result)
         sk2r[splitkey].append(result)
     assert len(sk2r) > 0
-    assert isinstance(resample, int), "0: don't resample. <integer>: that many samples"
+    assert isinstance(resample, int), u"0: don't resample. <integer>: that many samples"
     nrows = len(sk2r)
     ncols = 1
     figsize = figsize or (6, 6 * nrows)
@@ -322,7 +337,7 @@ def plot_results(
             g2c[group] += 1
             x, y = xy_fn(result)
             if x is None: x = np.arange(len(y))
-            x, y = map(np.asarray, (x, y))
+            x, y = imap(np.asarray, (x, y))
             if average_group:
                 gresults[group].append((x,y))
             else:
@@ -337,7 +352,7 @@ def plot_results(
                     continue
                 color = COLORS[groups.index(group) % len(COLORS)]
                 origxs = [xy[0] for xy in xys]
-                minxlen = min(map(len, origxs))
+                minxlen = min(imap(len, origxs))
                 def allequal(qs):
                     return all((q==qs[0]).all() for q in qs[1:])
                 if resample:
@@ -349,7 +364,7 @@ def plot_results(
                         ys.append(symmetric_ema(x, y, low, high, resample, decay_steps=smooth_step)[1])
                 else:
                     assert allequal([x[:minxlen] for x in origxs]),\
-                        'If you want to average unevenly sampled data, set resample=<number of samples you want>'
+                        u'If you want to average unevenly sampled data, set resample=<number of samples you want>'
                     usex = origxs[0]
                     ys = [xy[1][:minxlen] for xy in xys]
                 ymean = np.mean(ys, axis=0)
@@ -368,7 +383,7 @@ def plot_results(
         if any(g2l.keys()):
             ax.legend(
                 g2l.values(),
-                ['%s (%i)'%(g, g2c[g]) for g in g2l] if average_group else g2l.keys(),
+                [u'%s (%i)'%(g, g2c[g]) for g in g2l] if average_group else g2l.keys(),
                 loc=2 if legend_outside else None,
                 bbox_to_anchor=(1,1) if legend_outside else None)
         ax.set_title(sk)
@@ -376,12 +391,12 @@ def plot_results(
 
 def regression_analysis(df):
     xcols = list(df.columns.copy())
-    xcols.remove('score')
-    ycols = ['score']
+    xcols.remove(u'score')
+    ycols = [u'score']
     import statsmodels.api as sm
     mod = sm.OLS(df[ycols], sm.add_constant(df[xcols]), hasconst=False)
     res = mod.fit()
-    print(res.summary())
+    print res.summary()
 
 def test_smooth():
     norig = 100
@@ -393,11 +408,11 @@ def test_smooth():
     xup, yup, _ = symmetric_ema(xs, ys, xs.min(), xs.max(), nup, decay_steps=nup/ndown)
     xdown, ydown, _ = symmetric_ema(xs, ys, xs.min(), xs.max(), ndown, decay_steps=ndown/ndown)
     xsame, ysame, _ = symmetric_ema(xs, ys, xs.min(), xs.max(), norig, decay_steps=norig/ndown)
-    plt.plot(xs, ys, label='orig', marker='x')
-    plt.plot(xup, yup, label='up', marker='x')
-    plt.plot(xdown, ydown, label='down', marker='x')
-    plt.plot(xsame, ysame, label='same', marker='x')
-    plt.plot(xs, yclean, label='clean', marker='x')
+    plt.plot(xs, ys, label=u'orig', marker=u'x')
+    plt.plot(xup, yup, label=u'up', marker=u'x')
+    plt.plot(xdown, ydown, label=u'down', marker=u'x')
+    plt.plot(xsame, ysame, label=u'same', marker=u'x')
+    plt.plot(xs, yclean, label=u'clean', marker=u'x')
     plt.legend()
     plt.show()
 

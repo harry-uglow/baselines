@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from baselines.deepq import models  # noqa
 from baselines.deepq.build_graph import build_act, build_train  # noqa
 from baselines.deepq.deepq import learn, load_act  # noqa

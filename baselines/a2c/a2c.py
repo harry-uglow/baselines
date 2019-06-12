@@ -1,3 +1,6 @@
+from __future__ import division
+from __future__ import with_statement
+from __future__ import absolute_import
 import time
 import functools
 import tensorflow as tf
@@ -15,10 +18,11 @@ from baselines.ppo2.ppo2 import safemean
 from collections import deque
 
 from tensorflow import losses
+from itertools import izip
 
 class Model(object):
 
-    """
+    u"""
     We use this class to :
         __init__:
         - Creates the step_model
@@ -32,14 +36,14 @@ class Model(object):
     """
     def __init__(self, policy, env, nsteps,
             ent_coef=0.01, vf_coef=0.5, max_grad_norm=0.5, lr=7e-4,
-            alpha=0.99, epsilon=1e-5, total_timesteps=int(80e6), lrschedule='linear'):
+            alpha=0.99, epsilon=1e-5, total_timesteps=int(80e6), lrschedule=u'linear'):
 
         sess = tf_util.get_session()
         nenvs = env.num_envs
         nbatch = nenvs*nsteps
 
 
-        with tf.variable_scope('a2c_model', reuse=tf.AUTO_REUSE):
+        with tf.variable_scope(u'a2c_model', reuse=tf.AUTO_REUSE):
             # step_model is used for sampling
             step_model = policy(nenvs, 1, sess)
 
@@ -69,14 +73,14 @@ class Model(object):
 
         # Update parameters using loss
         # 1. Get the model parameters
-        params = find_trainable_variables("a2c_model")
+        params = find_trainable_variables(u"a2c_model")
 
         # 2. Calculate the gradients
         grads = tf.gradients(loss, params)
         if max_grad_norm is not None:
             # Clip the gradients (normalize)
             grads, grad_norm = tf.clip_by_global_norm(grads, max_grad_norm)
-        grads = list(zip(grads, params))
+        grads = list(izip(grads, params))
         # zip aggregate each gradient with parameters associated
         # For instance zip(ABCD, xyza) => Ax, By, Cz, Da
 
@@ -91,7 +95,7 @@ class Model(object):
             # Here we calculate advantage A(s,a) = R + yV(s') - V(s)
             # rewards = R + yV(s')
             advs = rewards - values
-            for step in range(len(obs)):
+            for step in xrange(len(obs)):
                 cur_lr = lr.value()
 
             td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr}
@@ -126,7 +130,7 @@ def learn(
     ent_coef=0.01,
     max_grad_norm=0.5,
     lr=7e-4,
-    lrschedule='linear',
+    lrschedule=u'linear',
     epsilon=1e-5,
     alpha=0.99,
     gamma=0.99,
@@ -134,7 +138,7 @@ def learn(
     load_path=None,
     **network_kwargs):
 
-    '''
+    u'''
     Main entrypoint for A2C algorithm. Train a policy with given network architecture on a given environment using a2c algorithm.
 
     Parameters:
@@ -205,7 +209,7 @@ def learn(
     # Start total timer
     tstart = time.time()
 
-    for update in range(1, total_timesteps//nbatch+1):
+    for update in xrange(1, total_timesteps//nbatch+1):
         # Get mini batch of experiences
         obs, states, rewards, masks, actions, values, epinfos = runner.run()
         epinfobuf.extend(epinfos)
@@ -219,14 +223,14 @@ def learn(
             # Calculates if value function is a good predicator of the returns (ev > 1)
             # or if it's just worse than predicting nothing (ev =< 0)
             ev = explained_variance(values, rewards)
-            logger.record_tabular("nupdates", update)
-            logger.record_tabular("total_timesteps", update*nbatch)
-            logger.record_tabular("fps", fps)
-            logger.record_tabular("policy_entropy", float(policy_entropy))
-            logger.record_tabular("value_loss", float(value_loss))
-            logger.record_tabular("explained_variance", float(ev))
-            logger.record_tabular("eprewmean", safemean([epinfo['r'] for epinfo in epinfobuf]))
-            logger.record_tabular("eplenmean", safemean([epinfo['l'] for epinfo in epinfobuf]))
+            logger.record_tabular(u"nupdates", update)
+            logger.record_tabular(u"total_timesteps", update*nbatch)
+            logger.record_tabular(u"fps", fps)
+            logger.record_tabular(u"policy_entropy", float(policy_entropy))
+            logger.record_tabular(u"value_loss", float(value_loss))
+            logger.record_tabular(u"explained_variance", float(ev))
+            logger.record_tabular(u"eprewmean", safemean([epinfo[u'r'] for epinfo in epinfobuf]))
+            logger.record_tabular(u"eplenmean", safemean([epinfo[u'l'] for epinfo in epinfobuf]))
             logger.dump_tabular()
     return model
 

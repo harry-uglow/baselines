@@ -1,4 +1,4 @@
-"""This file is used for specifying various schedules that evolve over
+u"""This file is used for specifying various schedules that evolve over
 time throughout the execution of the algorithm, such as:
  - learning rate for the optimizer
  - exploration epsilon for the epsilon greedy exploration strategy
@@ -7,17 +7,19 @@ time throughout the execution of the algorithm, such as:
 Each schedule has a function `value(t)` which returns the current value
 of the parameter given the timestep t of the optimization procedure.
 """
+from __future__ import division
+from itertools import izip
 
 
 class Schedule(object):
     def value(self, t):
-        """Value of the schedule at time t"""
+        u"""Value of the schedule at time t"""
         raise NotImplementedError()
 
 
 class ConstantSchedule(object):
     def __init__(self, value):
-        """Value remains constant over time.
+        u"""Value remains constant over time.
 
         Parameters
         ----------
@@ -27,7 +29,7 @@ class ConstantSchedule(object):
         self._v = value
 
     def value(self, t):
-        """See Schedule.value"""
+        u"""See Schedule.value"""
         return self._v
 
 
@@ -37,7 +39,7 @@ def linear_interpolation(l, r, alpha):
 
 class PiecewiseSchedule(object):
     def __init__(self, endpoints, interpolation=linear_interpolation, outside_value=None):
-        """Piecewise schedule.
+        u"""Piecewise schedule.
 
         endpoints: [(int, int)]
             list of pairs `(time, value)` meanining that schedule should output
@@ -62,8 +64,8 @@ class PiecewiseSchedule(object):
         self._endpoints = endpoints
 
     def value(self, t):
-        """See Schedule.value"""
-        for (l_t, l), (r_t, r) in zip(self._endpoints[:-1], self._endpoints[1:]):
+        u"""See Schedule.value"""
+        for (l_t, l), (r_t, r) in izip(self._endpoints[:-1], self._endpoints[1:]):
             if l_t <= t and t < r_t:
                 alpha = float(t - l_t) / (r_t - l_t)
                 return self._interpolation(l, r, alpha)
@@ -75,7 +77,7 @@ class PiecewiseSchedule(object):
 
 class LinearSchedule(object):
     def __init__(self, schedule_timesteps, final_p, initial_p=1.0):
-        """Linear interpolation between initial_p and final_p over
+        u"""Linear interpolation between initial_p and final_p over
         schedule_timesteps. After this many timesteps pass final_p is
         returned.
 
@@ -94,6 +96,6 @@ class LinearSchedule(object):
         self.initial_p = initial_p
 
     def value(self, t):
-        """See Schedule.value"""
+        u"""See Schedule.value"""
         fraction = min(float(t) / self.schedule_timesteps, 1.0)
         return self.initial_p + fraction * (self.final_p - self.initial_p)

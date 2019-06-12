@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import numpy as np
 from gym import Env
 from gym.spaces import Discrete
@@ -20,7 +21,7 @@ class FixedSequenceEnv(Env):
 
     def reset(self):
         if self.sequence is None:
-            self.sequence = [self.np_random.randint(0, self.action_space.n-1) for _ in range(self.episode_len)]
+            self.sequence = [self.np_random.randint(0, self.action_space.n-1) for _ in xrange(self.episode_len)]
         self.time = 0
         return 0
 

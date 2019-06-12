@@ -1,3 +1,5 @@
+from __future__ import with_statement
+from __future__ import absolute_import
 import os.path as osp
 import numpy as np
 import tempfile
@@ -17,8 +19,8 @@ class MnistEnv(Env):
         # we could use temporary directory for this with a context manager and
         # TemporaryDirecotry, but then each test that uses mnist would re-download the data
         # this way the data is not cleaned up, but we only download it once per machine
-        mnist_path = osp.join(tempfile.gettempdir(), 'MNIST_data')
-        with filelock.FileLock(mnist_path + '.lock'):
+        mnist_path = osp.join(tempfile.gettempdir(), u'MNIST_data')
+        with filelock.FileLock(mnist_path + u'.lock'):
            self.mnist = input_data.read_data_sets(mnist_path)
 
         self.np_random = np.random.RandomState()

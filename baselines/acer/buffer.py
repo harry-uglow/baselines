@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import numpy as np
 
 class Buffer(object):
@@ -70,7 +71,7 @@ class Buffer(object):
     def take(self, x, idx, envx):
         nenv = self.nenv
         out = np.empty([nenv] + list(x.shape[2:]), dtype=x.dtype)
-        for i in range(nenv):
+        for i in xrange(nenv):
             out[i] = x[idx[i], envx[i]]
         return out
 
@@ -113,7 +114,7 @@ def _stack_obs_ref(enc_obs, dones, nsteps):
     mask[:nstack-1] = 1.0
 
     # y = np.reshape(1 - dones, [nenvs, nsteps, 1, 1, 1])
-    for i in range(nstack):
+    for i in xrange(nstack):
         obs[-(i + 1), i:] = x
         # obs[:,i:,:,:,-(i+1),:] = x
         x = x[:-1] * mask
@@ -131,7 +132,7 @@ def _stack_obs(enc_obs, dones, nsteps):
     mask[:, 1:] = 1.0 - dones
     mask = mask.reshape(mask.shape + tuple(np.ones(len(enc_obs.shape)-2, dtype=np.uint8)))
 
-    for i in range(nstack-1, -1, -1):
+    for i in xrange(nstack-1, -1, -1):
         obs_[..., i * nc : (i + 1) * nc] = enc_obs[:, i : i + nsteps + 1, :]
         if i < nstack-1:
             obs_[..., i * nc : (i + 1) * nc] *= mask

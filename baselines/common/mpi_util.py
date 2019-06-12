@@ -1,3 +1,6 @@
+from __future__ import division
+from __future__ import with_statement
+from __future__ import absolute_import
 from collections import defaultdict
 import os, numpy as np
 import platform
@@ -5,6 +8,9 @@ import shutil
 import subprocess
 import warnings
 import sys
+from itertools import izip
+from itertools import imap
+from io import open
 
 try:
     from mpi4py import MPI
@@ -13,7 +19,7 @@ except ImportError:
 
 
 def sync_from_root(sess, variables, comm=None):
-    """
+    u"""
     Send the root node's parameters to every worker.
     Arguments:
       sess: the TensorFlow session.
@@ -23,31 +29,31 @@ def sync_from_root(sess, variables, comm=None):
     import tensorflow as tf
     values = comm.bcast(sess.run(variables))
     sess.run([tf.assign(var, val)
-        for (var, val) in zip(variables, values)])
+        for (var, val) in izip(variables, values)])
 
 def gpu_count():
-    """
+    u"""
     Count the GPUs on this machine.
     """
-    if shutil.which('nvidia-smi') is None:
+    if shutil.which(u'nvidia-smi') is None:
         return 0
-    output = subprocess.check_output(['nvidia-smi', '--query-gpu=gpu_name', '--format=csv'])
-    return max(0, len(output.split(b'\n')) - 2)
+    output = subprocess.check_output([u'nvidia-smi', u'--query-gpu=gpu_name', u'--format=csv'])
+    return max(0, len(output.split('\n')) - 2)
 
 def setup_mpi_gpus():
-    """
+    u"""
     Set CUDA_VISIBLE_DEVICES to MPI rank if not already set
     """
-    if 'CUDA_VISIBLE_DEVICES' not in os.environ:
-        if sys.platform == 'darwin': # This Assumes if you're on OSX you're just
+    if u'CUDA_VISIBLE_DEVICES' not in os.environ:
+        if sys.platform == u'darwin': # This Assumes if you're on OSX you're just
             ids = []                 # doing a smoke test and don't want GPUs
         else:
             lrank, _lsize = get_local_rank_size(MPI.COMM_WORLD)
             ids = [lrank]
-        os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, ids))
+        os.environ[u"CUDA_VISIBLE_DEVICES"] = u",".join(imap(unicode, ids))
 
 def get_local_rank_size(comm):
-    """
+    u"""
     Returns the rank of each process on its machine
     The processes on a given machine will be assigned ranks
         0, 1, 2, ..., N-1,
@@ -67,25 +73,25 @@ def get_local_rank_size(comm):
     return local_rank, node2rankssofar[this_node]
 
 def share_file(comm, path):
-    """
+    u"""
     Copies the file from rank 0 to all other ranks
     Puts it in the same place on all machines
     """
     localrank, _ = get_local_rank_size(comm)
     if comm.Get_rank() == 0:
-        with open(path, 'rb') as fh:
+        with open(path, u'rb') as fh:
             data = fh.read()
         comm.bcast(data)
     else:
         data = comm.bcast(None)
         if localrank == 0:
             os.makedirs(os.path.dirname(path), exist_ok=True)
-            with open(path, 'wb') as fh:
+            with open(path, u'wb') as fh:
                 fh.write(data)
     comm.Barrier()
 
-def dict_gather(comm, d, op='mean', assert_all_have_data=True):
-    """
+def dict_gather(comm, d, op=u'mean', assert_all_have_data=True):
+    u"""
     Perform a reduction operation over dicts
     """
     if comm is None: return d
@@ -98,17 +104,17 @@ def dict_gather(comm, d, op='mean', assert_all_have_data=True):
     result = {}
     for (k,li) in k2li.items():
         if assert_all_have_data:
-            assert len(li)==size, "only %i out of %i MPI workers have sent '%s'" % (len(li), size, k)
-        if op=='mean':
+            assert len(li)==size, u"only %i out of %i MPI workers have sent '%s'" % (len(li), size, k)
+        if op==u'mean':
             result[k] = np.mean(li, axis=0)
-        elif op=='sum':
+        elif op==u'sum':
             result[k] = np.sum(li, axis=0)
         else:
             assert 0, op
     return result
 
 def mpi_weighted_mean(comm, local_name2valcount):
-    """
+    u"""
     Perform a weighted average over dicts that are each on a different node
     Input: local_name2valcount: dict mapping key -> (value, count)
     Returns: key -> mean
@@ -123,11 +129,11 @@ def mpi_weighted_mean(comm, local_name2valcount):
                     val = float(val)
                 except ValueError:
                     if comm.rank == 0:
-                        warnings.warn('WARNING: tried to compute mean on non-float {}={}'.format(name, val))
+                        warnings.warn(u'WARNING: tried to compute mean on non-float {}={}'.format(name, val))
                 else:
                     name2sum[name] += val * count
                     name2count[name] += count
-        return {name : name2sum[name] / name2count[name] for name in name2sum}
+        return dict((name, name2sum[name] / name2count[name]) for name in name2sum)
     else:
         return {}
 

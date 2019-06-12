@@ -1,7 +1,8 @@
-"""
+u"""
 Helpers for scripts like run_atari.py.
 """
 
+from __future__ import absolute_import
 import os
 try:
     from mpi4py import MPI
@@ -24,7 +25,7 @@ def make_vec_env(env_id, env_type, num_env, seed,
                  reward_scale=1.0,
                  flatten_dict_observations=True,
                  gamestate=None):
-    """
+    u"""
     Create a wrapped, monitored SubprocVecEnv for Atari and MuJoCo.
     """
     wrapper_kwargs = wrapper_kwargs or {}
@@ -47,16 +48,16 @@ def make_vec_env(env_id, env_type, num_env, seed,
 
     set_global_seeds(seed)
     if num_env > 1:
-        return SubprocVecEnv([make_thunk(i + start_index) for i in range(num_env)])
+        return SubprocVecEnv([make_thunk(i + start_index) for i in xrange(num_env)])
     else:
         return DummyVecEnv([make_thunk(start_index)])
 
 
 def make_env(env_id, env_type, mpi_rank=0, subrank=0, seed=None, reward_scale=1.0, gamestate=None, flatten_dict_observations=True, wrapper_kwargs=None, logger_dir=None):
     wrapper_kwargs = wrapper_kwargs or {}
-    if env_type == 'atari':
+    if env_type == u'atari':
         env = make_atari(env_id)
-    elif env_type == 'retro':
+    elif env_type == u'retro':
         import retro
         gamestate = gamestate or retro.State.DEFAULT
         env = retro_wrappers.make_retro(game=env_id, max_episode_steps=10000, use_restricted_actions=retro.Actions.DISCRETE, state=gamestate)
@@ -69,14 +70,14 @@ def make_env(env_id, env_type, mpi_rank=0, subrank=0, seed=None, reward_scale=1.
 
     env.seed(seed + subrank if seed is not None else None)
     env = Monitor(env,
-                  logger_dir and os.path.join(logger_dir, str(mpi_rank) + '.' + str(subrank)),
+                  logger_dir and os.path.join(logger_dir, unicode(mpi_rank) + u'.' + unicode(subrank)),
                   allow_early_resets=True)
 
-    if env_type == 'atari':
+    if env_type == u'atari':
         env = wrap_deepmind(env, **wrapper_kwargs)
-    elif env_type == 'retro':
-        if 'frame_stack' not in wrapper_kwargs:
-            wrapper_kwargs['frame_stack'] = 1
+    elif env_type == u'retro':
+        if u'frame_stack' not in wrapper_kwargs:
+            wrapper_kwargs[u'frame_stack'] = 1
         env = retro_wrappers.wrap_deepmind_retro(env, **wrapper_kwargs)
 
     if reward_scale != 1:
@@ -86,14 +87,14 @@ def make_env(env_id, env_type, mpi_rank=0, subrank=0, seed=None, reward_scale=1.
 
 
 def make_mujoco_env(env_id, seed, reward_scale=1.0):
-    """
+    u"""
     Create a wrapped, monitored gym.Env for MuJoCo.
     """
     rank = MPI.COMM_WORLD.Get_rank()
     myseed = seed  + 1000 * rank if seed is not None else None
     set_global_seeds(myseed)
     env = gym.make(env_id)
-    logger_path = None if logger.get_dir() is None else os.path.join(logger.get_dir(), str(rank))
+    logger_path = None if logger.get_dir() is None else os.path.join(logger.get_dir(), unicode(rank))
     env = Monitor(env, logger_path, allow_early_resets=True)
     env.seed(seed)
     if reward_scale != 1.0:
@@ -102,78 +103,78 @@ def make_mujoco_env(env_id, seed, reward_scale=1.0):
     return env
 
 def make_robotics_env(env_id, seed, rank=0):
-    """
+    u"""
     Create a wrapped, monitored gym.Env for MuJoCo.
     """
     set_global_seeds(seed)
     env = gym.make(env_id)
-    env = FlattenDictWrapper(env, ['observation', 'desired_goal'])
+    env = FlattenDictWrapper(env, [u'observation', u'desired_goal'])
     env = Monitor(
-        env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)),
-        info_keywords=('is_success',))
+        env, logger.get_dir() and os.path.join(logger.get_dir(), unicode(rank)),
+        info_keywords=(u'is_success',))
     env.seed(seed)
     return env
 
 def arg_parser():
-    """
+    u"""
     Create an empty argparse.ArgumentParser.
     """
     import argparse
     return argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 def atari_arg_parser():
-    """
+    u"""
     Create an argparse.ArgumentParser for run_atari.py.
     """
-    print('Obsolete - use common_arg_parser instead')
+    print u'Obsolete - use common_arg_parser instead'
     return common_arg_parser()
 
 def mujoco_arg_parser():
-    print('Obsolete - use common_arg_parser instead')
+    print u'Obsolete - use common_arg_parser instead'
     return common_arg_parser()
 
 def common_arg_parser():
-    """
+    u"""
     Create an argparse.ArgumentParser for run_mujoco.py.
     """
     parser = arg_parser()
-    parser.add_argument('--env', help='environment ID', type=str, default='Reacher-v2')
-    parser.add_argument('--env_type', help='type of environment, used when the environment type cannot be automatically determined', type=str)
-    parser.add_argument('--seed', help='RNG seed', type=int, default=None)
-    parser.add_argument('--alg', help='Algorithm', type=str, default='ppo2')
-    parser.add_argument('--num_timesteps', type=float, default=1e6),
-    parser.add_argument('--network', help='network type (mlp, cnn, lstm, cnn_lstm, conv_only)', default=None)
-    parser.add_argument('--gamestate', help='game state to load (so far only used in retro games)', default=None)
-    parser.add_argument('--num_env', help='Number of environment copies being run in parallel. When not specified, set to number of cpus for Atari, and to 1 for Mujoco', default=None, type=int)
-    parser.add_argument('--reward_scale', help='Reward scale factor. Default: 1.0', default=1.0, type=float)
-    parser.add_argument('--save_path', help='Path to save trained model to', default=None, type=str)
-    parser.add_argument('--save_video_interval', help='Save video every x steps (0 = disabled)', default=0, type=int)
-    parser.add_argument('--save_video_length', help='Length of recorded video. Default: 200', default=200, type=int)
-    parser.add_argument('--play', default=False, action='store_true')
+    parser.add_argument(u'--env', help=u'environment ID', type=unicode, default=u'Reacher-v2')
+    parser.add_argument(u'--env_type', help=u'type of environment, used when the environment type cannot be automatically determined', type=unicode)
+    parser.add_argument(u'--seed', help=u'RNG seed', type=int, default=None)
+    parser.add_argument(u'--alg', help=u'Algorithm', type=unicode, default=u'ppo2')
+    parser.add_argument(u'--num_timesteps', type=float, default=1e6),
+    parser.add_argument(u'--network', help=u'network type (mlp, cnn, lstm, cnn_lstm, conv_only)', default=None)
+    parser.add_argument(u'--gamestate', help=u'game state to load (so far only used in retro games)', default=None)
+    parser.add_argument(u'--num_env', help=u'Number of environment copies being run in parallel. When not specified, set to number of cpus for Atari, and to 1 for Mujoco', default=None, type=int)
+    parser.add_argument(u'--reward_scale', help=u'Reward scale factor. Default: 1.0', default=1.0, type=float)
+    parser.add_argument(u'--save_path', help=u'Path to save trained model to', default=None, type=unicode)
+    parser.add_argument(u'--save_video_interval', help=u'Save video every x steps (0 = disabled)', default=0, type=int)
+    parser.add_argument(u'--save_video_length', help=u'Length of recorded video. Default: 200', default=200, type=int)
+    parser.add_argument(u'--play', default=False, action=u'store_true')
     return parser
 
 def robotics_arg_parser():
-    """
+    u"""
     Create an argparse.ArgumentParser for run_mujoco.py.
     """
     parser = arg_parser()
-    parser.add_argument('--env', help='environment ID', type=str, default='FetchReach-v0')
-    parser.add_argument('--seed', help='RNG seed', type=int, default=None)
-    parser.add_argument('--num-timesteps', type=int, default=int(1e6))
+    parser.add_argument(u'--env', help=u'environment ID', type=unicode, default=u'FetchReach-v0')
+    parser.add_argument(u'--seed', help=u'RNG seed', type=int, default=None)
+    parser.add_argument(u'--num-timesteps', type=int, default=int(1e6))
     return parser
 
 
 def parse_unknown_args(args):
-    """
+    u"""
     Parse arguments not consumed by arg parser into a dicitonary
     """
     retval = {}
     preceded_by_key = False
     for arg in args:
-        if arg.startswith('--'):
-            if '=' in arg:
-                key = arg.split('=')[0][2:]
-                value = arg.split('=')[1]
+        if arg.startswith(u'--'):
+            if u'=' in arg:
+                key = arg.split(u'=')[0][2:]
+                value = arg.split(u'=')[1]
                 retval[key] = value
             else:
                 key = arg[2:]

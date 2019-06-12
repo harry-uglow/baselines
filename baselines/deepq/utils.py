@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from baselines.common.input import observation_input
 from baselines.common.tf_util import adjust_shape
 
@@ -7,28 +8,28 @@ from baselines.common.tf_util import adjust_shape
 
 
 class TfInput(object):
-    def __init__(self, name="(unnamed)"):
-        """Generalized Tensorflow placeholder. The main differences are:
+    def __init__(self, name=u"(unnamed)"):
+        u"""Generalized Tensorflow placeholder. The main differences are:
             - possibly uses multiple placeholders internally and returns multiple values
             - can apply light postprocessing to the value feed to placeholder.
         """
         self.name = name
 
     def get(self):
-        """Return the tf variable(s) representing the possibly postprocessed value
+        u"""Return the tf variable(s) representing the possibly postprocessed value
         of placeholder(s).
         """
         raise NotImplementedError
 
     def make_feed_dict(self, data):
-        """Given data input it to the placeholder(s)."""
+        u"""Given data input it to the placeholder(s)."""
         raise NotImplementedError
 
 
 class PlaceholderTfInput(TfInput):
     def __init__(self, placeholder):
-        """Wrapper for regular tensorflow placeholder."""
-        super().__init__(placeholder.name)
+        u"""Wrapper for regular tensorflow placeholder."""
+        super(PlaceholderTfInput, self).__init__(placeholder.name)
         self._placeholder = placeholder
 
     def get(self):
@@ -40,7 +41,7 @@ class PlaceholderTfInput(TfInput):
 
 class ObservationInput(PlaceholderTfInput):
     def __init__(self, observation_space, name=None):
-        """Creates an input placeholder tailored to a specific observation space
+        u"""Creates an input placeholder tailored to a specific observation space
 
         Parameters
         ----------
@@ -51,7 +52,7 @@ class ObservationInput(PlaceholderTfInput):
                 tensorflow name of the underlying placeholder
         """
         inpt, self.processed_inpt = observation_input(observation_space, name=name)
-        super().__init__(inpt)
+        super(ObservationInput, self).__init__(inpt)
 
     def get(self):
         return self.processed_inpt

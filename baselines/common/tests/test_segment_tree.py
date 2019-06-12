@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import numpy as np
 
 from baselines.common.segment_tree import SumSegmentTree, MinSegmentTree
@@ -95,7 +96,7 @@ def test_max_interval_tree():
     assert np.isclose(tree.min(3, 4), 3.0)
 
 
-if __name__ == '__main__':
+if __name__ == u'__main__':
     test_tree_set()
     test_tree_set_overlap()
     test_prefixsum_idx()

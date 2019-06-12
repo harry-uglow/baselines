@@ -1,33 +1,36 @@
+from __future__ import absolute_import
 import contextlib
 import os
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 
 from baselines.common.tile_images import tile_images
 
+ABC = ABCMeta('ABC', (object,), {})
+
 class AlreadySteppingError(Exception):
-    """
+    u"""
     Raised when an asynchronous step is running while
     step_async() is called again.
     """
 
     def __init__(self):
-        msg = 'already running an async step'
+        msg = u'already running an async step'
         Exception.__init__(self, msg)
 
 
 class NotSteppingError(Exception):
-    """
+    u"""
     Raised when an asynchronous step is not running but
     step_wait() is called.
     """
 
     def __init__(self):
-        msg = 'not running an async step'
+        msg = u'not running an async step'
         Exception.__init__(self, msg)
 
 
 class VecEnv(ABC):
-    """
+    u"""
     An abstract asynchronous, vectorized environment.
     Used to batch data from multiple copies of an environment, so that
     each observation becomes an batch of observations, and expected action is a batch of actions to
@@ -37,7 +40,7 @@ class VecEnv(ABC):
     viewer = None
 
     metadata = {
-        'render.modes': ['human', 'rgb_array']
+        u'render.modes': [u'human', u'rgb_array']
     }
 
     def __init__(self, num_envs, observation_space, action_space):
@@ -47,7 +50,7 @@ class VecEnv(ABC):
 
     @abstractmethod
     def reset(self):
-        """
+        u"""
         Reset all the environments and return an array of
         observations, or a dict of observation arrays.
 
@@ -59,7 +62,7 @@ class VecEnv(ABC):
 
     @abstractmethod
     def step_async(self, actions):
-        """
+        u"""
         Tell all the environments to start taking a step
         with the given actions.
         Call step_wait() to get the results of the step.
@@ -71,7 +74,7 @@ class VecEnv(ABC):
 
     @abstractmethod
     def step_wait(self):
-        """
+        u"""
         Wait for the step taken with step_async().
 
         Returns (obs, rews, dones, infos):
@@ -84,7 +87,7 @@ class VecEnv(ABC):
         pass
 
     def close_extras(self):
-        """
+        u"""
         Clean up the  extra resources, beyond what's in this base class.
         Only runs when not self.closed.
         """
@@ -99,7 +102,7 @@ class VecEnv(ABC):
         self.closed = True
 
     def step(self, actions):
-        """
+        u"""
         Step the environments synchronously.
 
         This is available for backwards compatibility.
@@ -107,19 +110,19 @@ class VecEnv(ABC):
         self.step_async(actions)
         return self.step_wait()
 
-    def render(self, mode='human'):
+    def render(self, mode=u'human'):
         imgs = self.get_images()
         bigimg = tile_images(imgs)
-        if mode == 'human':
+        if mode == u'human':
             self.get_viewer().imshow(bigimg)
             return self.get_viewer().isopen
-        elif mode == 'rgb_array':
+        elif mode == u'rgb_array':
             return bigimg
         else:
             raise NotImplementedError
 
     def get_images(self, **kwargs):
-        """
+        u"""
         Return RGB images from each environment
         """
         raise NotImplementedError
@@ -138,7 +141,7 @@ class VecEnv(ABC):
         return self.viewer
 
 class VecEnvWrapper(VecEnv):
-    """
+    u"""
     An environment wrapper that applies to an entire batch
     of environments at once.
     """
@@ -164,7 +167,7 @@ class VecEnvWrapper(VecEnv):
     def close(self):
         return self.venv.close()
 
-    def render(self, mode='human'):
+    def render(self, mode=u'human'):
         return self.venv.render(mode=mode)
 
     def get_images(self, **kwargs):
@@ -184,7 +187,7 @@ class VecEnvObservationWrapper(VecEnvWrapper):
         return self.process(obs), rews, dones, infos
 
 class CloudpickleWrapper(object):
-    """
+    u"""
     Uses cloudpickle to serialize contents (otherwise multiprocessing tries to use pickle)
     """
 
@@ -202,14 +205,14 @@ class CloudpickleWrapper(object):
 
 @contextlib.contextmanager
 def clear_mpi_env_vars():
-    """
+    u"""
     from mpi4py import MPI will call MPI_Init by default.  If the child process has MPI environment variables, MPI will think that the child process is an MPI process just like the parent and do bad things such as hang.
     This context manager is a hacky way to clear those environment variables temporarily such as when we are starting multiprocessing
     Processes.
     """
     removed_environment = {}
     for k, v in list(os.environ.items()):
-        for prefix in ['OMPI_', 'PMI_']:
+        for prefix in [u'OMPI_', u'PMI_']:
             if k.startswith(prefix):
                 removed_environment[k] = v
                 del os.environ[k]

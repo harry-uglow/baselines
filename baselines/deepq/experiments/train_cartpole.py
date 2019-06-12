@@ -1,3 +1,5 @@
+from __future__ import division
+from __future__ import absolute_import
 import gym
 
 from baselines import deepq
@@ -5,15 +7,15 @@ from baselines import deepq
 
 def callback(lcl, _glb):
     # stop training if reward exceeds 199
-    is_solved = lcl['t'] > 100 and sum(lcl['episode_rewards'][-101:-1]) / 100 >= 199
+    is_solved = lcl[u't'] > 100 and sum(lcl[u'episode_rewards'][-101:-1]) / 100 >= 199
     return is_solved
 
 
 def main():
-    env = gym.make("CartPole-v0")
+    env = gym.make(u"CartPole-v0")
     act = deepq.learn(
         env,
-        network='mlp',
+        network=u'mlp',
         lr=1e-3,
         total_timesteps=100000,
         buffer_size=50000,
@@ -22,9 +24,9 @@ def main():
         print_freq=10,
         callback=callback
     )
-    print("Saving model to cartpole_model.pkl")
-    act.save("cartpole_model.pkl")
+    print u"Saving model to cartpole_model.pkl"
+    act.save(u"cartpole_model.pkl")
 
 
-if __name__ == '__main__':
+if __name__ == u'__main__':
     main()

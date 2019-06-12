@@ -1,13 +1,14 @@
+from __future__ import absolute_import
 import gym
 from baselines import deepq
 
 
 def main():
-    env = gym.make("PongNoFrameskip-v4")
+    env = gym.make(u"PongNoFrameskip-v4")
     env = deepq.wrap_atari_dqn(env)
     model = deepq.learn(
         env,
-        "conv_only",
+        u"conv_only",
         convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
         hiddens=[256],
         dueling=True,
@@ -21,8 +22,8 @@ def main():
             env.render()
             obs, rew, done, _ = env.step(model(obs[None])[0])
             episode_rew += rew
-        print("Episode reward", episode_rew)
+        print u"Episode reward", episode_rew
 
 
-if __name__ == '__main__':
+if __name__ == u'__main__':
     main()

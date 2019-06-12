@@ -1,3 +1,6 @@
+from __future__ import division
+from __future__ import with_statement
+from __future__ import absolute_import
 import tensorflow as tf
 from baselines.common import tf_util
 from baselines.a2c.utils import fc
@@ -11,12 +14,12 @@ import gym
 
 
 class PolicyWithValue(object):
-    """
+    u"""
     Encapsulates fields and methods for RL policy and value function estimation with shared parameters
     """
 
     def __init__(self, env, observations, latent, estimate_q=False, vf_latent=None, sess=None, **tensors):
-        """
+        u"""
         Parameters:
         ----------
         env             RL environment
@@ -57,10 +60,10 @@ class PolicyWithValue(object):
 
         if estimate_q:
             assert isinstance(env.action_space, gym.spaces.Discrete)
-            self.q = fc(vf_latent, 'q', env.action_space.n)
+            self.q = fc(vf_latent, u'q', env.action_space.n)
             self.vf = self.q
         else:
-            self.vf = fc(vf_latent, 'vf', 1)
+            self.vf = fc(vf_latent, u'vf', 1)
             self.vf = self.vf[:,0]
 
     def _evaluate(self, variables, observation, **extra_feed):
@@ -69,13 +72,13 @@ class PolicyWithValue(object):
         for inpt_name, data in extra_feed.items():
             if inpt_name in self.__dict__.keys():
                 inpt = self.__dict__[inpt_name]
-                if isinstance(inpt, tf.Tensor) and inpt._op.type == 'Placeholder':
+                if isinstance(inpt, tf.Tensor) and inpt._op.type == u'Placeholder':
                     feed_dict[inpt] = adjust_shape(inpt, data)
 
         return sess.run(variables, feed_dict)
 
     def step(self, observation, **extra_feed):
-        """
+        u"""
         Compute next action(s) given the observation(s)
 
         Parameters:
@@ -96,7 +99,7 @@ class PolicyWithValue(object):
         return a, v, state, neglogp
 
     def value(self, ob, *args, **kwargs):
-        """
+        u"""
         Compute value estimate(s) given the observation(s)
 
         Parameters:
@@ -119,7 +122,7 @@ class PolicyWithValue(object):
         tf_util.load_state(load_path, sess=self.sess)
 
 def build_policy(env, policy_network, value_network=None,  normalize_observations=False, estimate_q=False, **policy_kwargs):
-    if isinstance(policy_network, str):
+    if isinstance(policy_network, unicode):
         network_type = policy_network
         policy_network = get_network_builder(network_type)(**policy_kwargs)
 
@@ -132,13 +135,13 @@ def build_policy(env, policy_network, value_network=None,  normalize_observation
 
         if normalize_observations and X.dtype == tf.float32:
             encoded_x, rms = _normalize_clip_observation(X)
-            extra_tensors['rms'] = rms
+            extra_tensors[u'rms'] = rms
         else:
             encoded_x = X
 
         encoded_x = encode_observation(ob_space, encoded_x)
 
-        with tf.variable_scope('pi', reuse=tf.AUTO_REUSE):
+        with tf.variable_scope(u'pi', reuse=tf.AUTO_REUSE):
             policy_latent = policy_network(encoded_x)
             if isinstance(policy_latent, tuple):
                 policy_latent, recurrent_tensors = policy_latent
@@ -146,22 +149,22 @@ def build_policy(env, policy_network, value_network=None,  normalize_observation
                 if recurrent_tensors is not None:
                     # recurrent architecture, need a few more steps
                     nenv = nbatch // nsteps
-                    assert nenv > 0, 'Bad input for recurrent policy: batch size {} smaller than nsteps {}'.format(nbatch, nsteps)
+                    assert nenv > 0, u'Bad input for recurrent policy: batch size {} smaller than nsteps {}'.format(nbatch, nsteps)
                     policy_latent, recurrent_tensors = policy_network(encoded_x, nenv)
                     extra_tensors.update(recurrent_tensors)
 
 
         _v_net = value_network
 
-        if _v_net is None or _v_net == 'shared':
+        if _v_net is None or _v_net == u'shared':
             vf_latent = policy_latent
         else:
-            if _v_net == 'copy':
+            if _v_net == u'copy':
                 _v_net = policy_network
             else:
                 assert callable(_v_net)
 
-            with tf.variable_scope('vf', reuse=tf.AUTO_REUSE):
+            with tf.variable_scope(u'vf', reuse=tf.AUTO_REUSE):
                 # TODO recurrent architectures are not supported with value_network=copy yet
                 vf_latent = _v_net(encoded_x)
 

@@ -1,3 +1,5 @@
+from __future__ import with_statement
+from __future__ import absolute_import
 import pytest
 try:
     import mujoco_py
@@ -9,7 +11,7 @@ except BaseException:
 
 @pytest.mark.skipif(
     not _mujoco_present,
-    reason='error loading mujoco - either mujoco / mujoco key not present, or LD_LIBRARY_PATH is not pointing to mujoco library'
+    reason=u'error loading mujoco - either mujoco / mujoco key not present, or LD_LIBRARY_PATH is not pointing to mujoco library'
 )
 def test_lstm_example():
     import tensorflow as tf
@@ -17,7 +19,7 @@ def test_lstm_example():
     from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 
     # create vectorized environment
-    venv = DummyVecEnv([lambda: cmd_util.make_mujoco_env('Reacher-v2', seed=0)])
+    venv = DummyVecEnv([lambda: cmd_util.make_mujoco_env(u'Reacher-v2', seed=0)])
 
     with tf.Session() as sess:
         # build policy based on lstm network with 128 units

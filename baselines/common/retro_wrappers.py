@@ -1,3 +1,5 @@
+from __future__ import division
+from __future__ import absolute_import
 from collections import deque
 import cv2
 cv2.ocl.setUseOpenCL(False)
@@ -14,7 +16,7 @@ class StochasticFrameSkip(gym.Wrapper):
         self.stickprob = stickprob
         self.curac = None
         self.rng = np.random.RandomState()
-        self.supports_want_render = hasattr(env, "supports_want_render")
+        self.supports_want_render = hasattr(env, u"supports_want_render")
 
     def reset(self, **kwargs):
         self.curac = None
@@ -23,7 +25,7 @@ class StochasticFrameSkip(gym.Wrapper):
     def step(self, ac):
         done = False
         totrew = 0
-        for i in range(self.n):
+        for i in xrange(self.n):
             # First step after reset, use action
             if self.curac is None:
                 self.curac = ac
@@ -47,7 +49,7 @@ class StochasticFrameSkip(gym.Wrapper):
 
 class PartialFrameStack(gym.Wrapper):
     def __init__(self, env, k, channel=1):
-        """
+        u"""
         Stack one channel (channel keyword) from previous frames
         """
         gym.Wrapper.__init__(self, env)
@@ -63,7 +65,7 @@ class PartialFrameStack(gym.Wrapper):
     def reset(self):
         ob = self.env.reset()
         assert ob.shape[2] > self.channel
-        for _ in range(self.k):
+        for _ in xrange(self.k):
             self.frames.append(ob)
         return self._get_ob()
 
@@ -79,7 +81,7 @@ class PartialFrameStack(gym.Wrapper):
 
 class Downsample(gym.ObservationWrapper):
     def __init__(self, env, ratio):
-        """
+        u"""
         Downsample images by a factor of ratio
         """
         gym.ObservationWrapper.__init__(self, env)
@@ -97,7 +99,7 @@ class Downsample(gym.ObservationWrapper):
 
 class Rgb2gray(gym.ObservationWrapper):
     def __init__(self, env):
-        """
+        u"""
         Downsample images by a factor of ratio
         """
         gym.ObservationWrapper.__init__(self, env)
@@ -134,18 +136,18 @@ class AppendTimeout(gym.Wrapper):
         if isinstance(self.original_os, gym.spaces.Dict):
             import copy
             ordered_dict = copy.deepcopy(self.original_os.spaces)
-            ordered_dict['value_estimation_timeout'] = self.timeout_space
+            ordered_dict[u'value_estimation_timeout'] = self.timeout_space
             self.observation_space = gym.spaces.Dict(ordered_dict)
             self.dict_mode = True
         else:
             self.observation_space = gym.spaces.Dict({
-                'original': self.original_os,
-                'value_estimation_timeout': self.timeout_space
+                u'original': self.original_os,
+                u'value_estimation_timeout': self.timeout_space
                 })
             self.dict_mode = False
         self.ac_count = None
         while 1:
-            if not hasattr(env, "_max_episode_steps"):  # Looking for TimeLimit wrapper that has this field
+            if not hasattr(env, u"_max_episode_steps"):  # Looking for TimeLimit wrapper that has this field
                 env = env.env
                 continue
             break
@@ -163,12 +165,12 @@ class AppendTimeout(gym.Wrapper):
     def _process(self, ob):
         fracmissing = 1 - self.ac_count / self.timeout
         if self.dict_mode:
-            ob['value_estimation_timeout'] = fracmissing
+            ob[u'value_estimation_timeout'] = fracmissing
         else:
-            return { 'original': ob, 'value_estimation_timeout': fracmissing }
+            return { u'original': ob, u'value_estimation_timeout': fracmissing }
 
 class StartDoingRandomActionsWrapper(gym.Wrapper):
-    """
+    u"""
     Warning: can eat info dicts, not good if you depend on them
     """
     def __init__(self, env, max_random_steps, on_startup=True, every_episode=False):
@@ -184,7 +186,7 @@ class StartDoingRandomActionsWrapper(gym.Wrapper):
         self.last_obs = self.env.reset()
         n = np.random.randint(self.random_steps)
         #print("running for random %i frames" % n)
-        for _ in range(n):
+        for _ in xrange(n):
             self.last_obs, _, done, _ = self.env.step(self.env.action_space.sample())
             if done: self.last_obs = self.env.reset()
 
@@ -199,7 +201,12 @@ class StartDoingRandomActionsWrapper(gym.Wrapper):
                 self.some_random_steps()
         return self.last_obs, rew, done, info
 
-def make_retro(*, game, state=None, max_episode_steps=4500, **kwargs):
+def make_retro( **kwargs):
+    if 'max_episode_steps' in kwargs: max_episode_steps = kwargs['max_episode_steps']; del kwargs['max_episode_steps']
+    else: max_episode_steps = 4500
+    if 'state' in kwargs: state = kwargs['state']; del kwargs['state']
+    else: state = None
+    game = kwargs['game']; del kwargs['game']
     import retro
     if state is None:
         state = retro.State.DEFAULT
@@ -210,7 +217,7 @@ def make_retro(*, game, state=None, max_episode_steps=4500, **kwargs):
     return env
 
 def wrap_deepmind_retro(env, scale=True, frame_stack=4):
-    """
+    u"""
     Configure environment for retro games, using config similar to DeepMind-style Atari in wrap_deepmind
     """
     env = WarpFrame(env)
@@ -222,15 +229,15 @@ def wrap_deepmind_retro(env, scale=True, frame_stack=4):
     return env
 
 class SonicDiscretizer(gym.ActionWrapper):
-    """
+    u"""
     Wrap a gym-retro environment and make it use discrete
     actions for the Sonic game.
     """
     def __init__(self, env):
         super(SonicDiscretizer, self).__init__(env)
-        buttons = ["B", "A", "MODE", "START", "UP", "DOWN", "LEFT", "RIGHT", "C", "Y", "X", "Z"]
-        actions = [['LEFT'], ['RIGHT'], ['LEFT', 'DOWN'], ['RIGHT', 'DOWN'], ['DOWN'],
-                   ['DOWN', 'B'], ['B']]
+        buttons = [u"B", u"A", u"MODE", u"START", u"UP", u"DOWN", u"LEFT", u"RIGHT", u"C", u"Y", u"X", u"Z"]
+        actions = [[u'LEFT'], [u'RIGHT'], [u'LEFT', u'DOWN'], [u'RIGHT', u'DOWN'], [u'DOWN'],
+                   [u'DOWN', u'B'], [u'B']]
         self._actions = []
         for action in actions:
             arr = np.array([False] * 12)
@@ -243,7 +250,7 @@ class SonicDiscretizer(gym.ActionWrapper):
         return self._actions[a].copy()
 
 class RewardScaler(gym.RewardWrapper):
-    """
+    u"""
     Bring rewards to a reasonable scale for PPO.
     This is incredibly important and effects performance
     drastically.
@@ -256,7 +263,7 @@ class RewardScaler(gym.RewardWrapper):
         return reward * self.scale
 
 class AllowBacktracking(gym.Wrapper):
-    """
+    u"""
     Use deltas in max(X) as the reward, rather than deltas
     in X. This way, agents are not discouraged too heavily
     from exploring backwards if there is no way to advance

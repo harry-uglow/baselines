@@ -1,3 +1,6 @@
+from __future__ import with_statement
+from __future__ import division
+from __future__ import absolute_import
 import numpy as np
 import tensorflow as tf
 from baselines.a2c import utils
@@ -14,22 +17,22 @@ def register(name):
     return _thunk
 
 def nature_cnn(unscaled_images, **conv_kwargs):
-    """
+    u"""
     CNN from Nature paper.
     """
     scaled_images = tf.cast(unscaled_images, tf.float32) / 255.
     activ = tf.nn.relu
-    h = activ(conv(scaled_images, 'c1', nf=32, rf=8, stride=4, init_scale=np.sqrt(2),
+    h = activ(conv(scaled_images, u'c1', nf=32, rf=8, stride=4, init_scale=np.sqrt(2),
                    **conv_kwargs))
-    h2 = activ(conv(h, 'c2', nf=64, rf=4, stride=2, init_scale=np.sqrt(2), **conv_kwargs))
-    h3 = activ(conv(h2, 'c3', nf=64, rf=3, stride=1, init_scale=np.sqrt(2), **conv_kwargs))
+    h2 = activ(conv(h, u'c2', nf=64, rf=4, stride=2, init_scale=np.sqrt(2), **conv_kwargs))
+    h3 = activ(conv(h2, u'c3', nf=64, rf=3, stride=1, init_scale=np.sqrt(2), **conv_kwargs))
     h3 = conv_to_fc(h3)
-    return activ(fc(h3, 'fc1', nh=512, init_scale=np.sqrt(2)))
+    return activ(fc(h3, u'fc1', nh=512, init_scale=np.sqrt(2)))
 
 
-@register("mlp")
+@register(u"mlp")
 def mlp(num_layers=2, num_hidden=64, activation=tf.tanh, layer_norm=False):
-    """
+    u"""
     Stack of fully-connected layers to be used in a policy / q-function approximator
 
     Parameters:
@@ -48,8 +51,8 @@ def mlp(num_layers=2, num_hidden=64, activation=tf.tanh, layer_norm=False):
     """
     def network_fn(X):
         h = tf.layers.flatten(X)
-        for i in range(num_layers):
-            h = fc(h, 'mlp_fc{}'.format(i), nh=num_hidden, init_scale=np.sqrt(2))
+        for i in xrange(num_layers):
+            h = fc(h, u'mlp_fc{}'.format(i), nh=num_hidden, init_scale=np.sqrt(2))
             if layer_norm:
                 h = tf.contrib.layers.layer_norm(h, center=True, scale=True)
             h = activation(h)
@@ -59,30 +62,30 @@ def mlp(num_layers=2, num_hidden=64, activation=tf.tanh, layer_norm=False):
     return network_fn
 
 
-@register("cnn")
+@register(u"cnn")
 def cnn(**conv_kwargs):
     def network_fn(X):
         return nature_cnn(X, **conv_kwargs)
     return network_fn
 
 
-@register("cnn_small")
+@register(u"cnn_small")
 def cnn_small(**conv_kwargs):
     def network_fn(X):
         h = tf.cast(X, tf.float32) / 255.
 
         activ = tf.nn.relu
-        h = activ(conv(h, 'c1', nf=8, rf=8, stride=4, init_scale=np.sqrt(2), **conv_kwargs))
-        h = activ(conv(h, 'c2', nf=16, rf=4, stride=2, init_scale=np.sqrt(2), **conv_kwargs))
+        h = activ(conv(h, u'c1', nf=8, rf=8, stride=4, init_scale=np.sqrt(2), **conv_kwargs))
+        h = activ(conv(h, u'c2', nf=16, rf=4, stride=2, init_scale=np.sqrt(2), **conv_kwargs))
         h = conv_to_fc(h)
-        h = activ(fc(h, 'fc1', nh=128, init_scale=np.sqrt(2)))
+        h = activ(fc(h, u'fc1', nh=128, init_scale=np.sqrt(2)))
         return h
     return network_fn
 
 
-@register("lstm")
+@register(u"lstm")
 def lstm(nlstm=128, layer_norm=False):
-    """
+    u"""
     Builds LSTM (Long-Short Term Memory) network to be used in a policy.
     Note that the resulting function returns not only the output of the LSTM
     (i.e. hidden state of lstm for each step in the sequence), but also a dictionary
@@ -123,19 +126,19 @@ def lstm(nlstm=128, layer_norm=False):
         ms = batch_to_seq(M, nenv, nsteps)
 
         if layer_norm:
-            h5, snew = utils.lnlstm(xs, ms, S, scope='lnlstm', nh=nlstm)
+            h5, snew = utils.lnlstm(xs, ms, S, scope=u'lnlstm', nh=nlstm)
         else:
-            h5, snew = utils.lstm(xs, ms, S, scope='lstm', nh=nlstm)
+            h5, snew = utils.lstm(xs, ms, S, scope=u'lstm', nh=nlstm)
 
         h = seq_to_batch(h5)
         initial_state = np.zeros(S.shape.as_list(), dtype=float)
 
-        return h, {'S':S, 'M':M, 'state':snew, 'initial_state':initial_state}
+        return h, {u'S':S, u'M':M, u'state':snew, u'initial_state':initial_state}
 
     return network_fn
 
 
-@register("cnn_lstm")
+@register(u"cnn_lstm")
 def cnn_lstm(nlstm=128, layer_norm=False, **conv_kwargs):
     def network_fn(X, nenv=1):
         nbatch = X.shape[0]
@@ -150,26 +153,26 @@ def cnn_lstm(nlstm=128, layer_norm=False, **conv_kwargs):
         ms = batch_to_seq(M, nenv, nsteps)
 
         if layer_norm:
-            h5, snew = utils.lnlstm(xs, ms, S, scope='lnlstm', nh=nlstm)
+            h5, snew = utils.lnlstm(xs, ms, S, scope=u'lnlstm', nh=nlstm)
         else:
-            h5, snew = utils.lstm(xs, ms, S, scope='lstm', nh=nlstm)
+            h5, snew = utils.lstm(xs, ms, S, scope=u'lstm', nh=nlstm)
 
         h = seq_to_batch(h5)
         initial_state = np.zeros(S.shape.as_list(), dtype=float)
 
-        return h, {'S':S, 'M':M, 'state':snew, 'initial_state':initial_state}
+        return h, {u'S':S, u'M':M, u'state':snew, u'initial_state':initial_state}
 
     return network_fn
 
 
-@register("cnn_lnlstm")
+@register(u"cnn_lnlstm")
 def cnn_lnlstm(nlstm=128, **conv_kwargs):
     return cnn_lstm(nlstm, layer_norm=True, **conv_kwargs)
 
 
-@register("conv_only")
+@register(u"conv_only")
 def conv_only(convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], **conv_kwargs):
-    '''
+    u'''
     convolutions-only net
 
     Parameters:
@@ -185,7 +188,7 @@ def conv_only(convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], **conv_kwargs):
 
     def network_fn(X):
         out = tf.cast(X, tf.float32) / 255.
-        with tf.variable_scope("convnet"):
+        with tf.variable_scope(u"convnet"):
             for num_outputs, kernel_size, stride in convs:
                 out = layers.convolution2d(out,
                                            num_outputs=num_outputs,
@@ -204,7 +207,7 @@ def _normalize_clip_observation(x, clip_range=[-5.0, 5.0]):
 
 
 def get_network_builder(name):
-    """
+    u"""
     If you want to register your own network outside models.py, you just need:
 
     Usage Example:
@@ -221,4 +224,4 @@ def get_network_builder(name):
     elif name in mapping:
         return mapping[name]
     else:
-        raise ValueError('Unknown network type: {}'.format(name))
+        raise ValueError(u'Unknown network type: {}'.format(name))

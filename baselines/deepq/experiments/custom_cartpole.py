@@ -1,3 +1,5 @@
+from __future__ import with_statement
+from __future__ import absolute_import
 import gym
 import itertools
 import numpy as np
@@ -14,7 +16,7 @@ from baselines.common.schedules import LinearSchedule
 
 
 def model(inpt, num_actions, scope, reuse=False):
-    """This model takes as input an observation and returns values of all actions."""
+    u"""This model takes as input an observation and returns values of all actions."""
     with tf.variable_scope(scope, reuse=reuse):
         out = inpt
         out = layers.fully_connected(out, num_outputs=64, activation_fn=tf.nn.tanh)
@@ -22,10 +24,10 @@ def model(inpt, num_actions, scope, reuse=False):
         return out
 
 
-if __name__ == '__main__':
+if __name__ == u'__main__':
     with U.make_session(num_cpu=8):
         # Create the environment
-        env = gym.make("CartPole-v0")
+        env = gym.make(u"CartPole-v0")
         # Create all the functions necessary to train the model
         act, train, update_target, debug = deepq.build_train(
             make_obs_ph=lambda name: ObservationInput(env.observation_space, name=name),
@@ -72,8 +74,8 @@ if __name__ == '__main__':
                     update_target()
 
             if done and len(episode_rewards) % 10 == 0:
-                logger.record_tabular("steps", t)
-                logger.record_tabular("episodes", len(episode_rewards))
-                logger.record_tabular("mean episode reward", round(np.mean(episode_rewards[-101:-1]), 1))
-                logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)))
+                logger.record_tabular(u"steps", t)
+                logger.record_tabular(u"episodes", len(episode_rewards))
+                logger.record_tabular(u"mean episode reward", round(np.mean(episode_rewards[-101:-1]), 1))
+                logger.record_tabular(u"% time spent exploring", int(100 * exploration.value(t)))
                 logger.dump_tabular()

@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import os
 from baselines import logger
 from baselines.common.vec_env import VecEnvWrapper
@@ -5,12 +6,12 @@ from gym.wrappers.monitoring import video_recorder
 
 
 class VecVideoRecorder(VecEnvWrapper):
-    """
+    u"""
     Wrap VecEnv to record rendered image as mp4 video.
     """
 
     def __init__(self, venv, directory, record_video_trigger, video_length=200):
-        """
+        u"""
         # Arguments
             venv: VecEnv to wrap
             directory: Where to save videos
@@ -28,8 +29,8 @@ class VecVideoRecorder(VecEnvWrapper):
         self.directory = os.path.abspath(directory)
         if not os.path.exists(self.directory): os.mkdir(self.directory)
 
-        self.file_prefix = "vecenv"
-        self.file_infix = '{}'.format(os.getpid())
+        self.file_prefix = u"vecenv"
+        self.file_infix = u'{}'.format(os.getpid())
         self.step_id = 0
         self.video_length = video_length
 
@@ -46,11 +47,11 @@ class VecVideoRecorder(VecEnvWrapper):
     def start_video_recorder(self):
         self.close_video_recorder()
 
-        base_path = os.path.join(self.directory, '{}.video.{}.video{:06}'.format(self.file_prefix, self.file_infix, self.step_id))
+        base_path = os.path.join(self.directory, u'{}.video.{}.video{:06}'.format(self.file_prefix, self.file_infix, self.step_id))
         self.video_recorder = video_recorder.VideoRecorder(
                 env=self.venv,
                 base_path=base_path,
-                metadata={'step_id': self.step_id}
+                metadata={u'step_id': self.step_id}
                 )
 
         self.video_recorder.capture_frame()
@@ -68,7 +69,7 @@ class VecVideoRecorder(VecEnvWrapper):
             self.video_recorder.capture_frame()
             self.recorded_frames += 1
             if self.recorded_frames > self.video_length:
-                logger.info("Saving video to ", self.video_recorder.path)
+                logger.info(u"Saving video to ", self.video_recorder.path)
                 self.close_video_recorder()
         elif self._video_enabled():
                 self.start_video_recorder()

@@ -1,8 +1,10 @@
+from __future__ import absolute_import
 from . import VecEnvWrapper
 from baselines.bench.monitor import ResultsWriter
 import numpy as np
 import time
 from collections import deque
+from itertools import izip
 
 class VecMonitor(VecEnvWrapper):
     def __init__(self, venv, filename=None, keep_buf=0):
@@ -12,7 +14,7 @@ class VecMonitor(VecEnvWrapper):
         self.epcount = 0
         self.tstart = time.time()
         if filename:
-            self.results_writer = ResultsWriter(filename, header={'t_start': self.tstart})
+            self.results_writer = ResultsWriter(filename, header={u't_start': self.tstart})
         else:
             self.results_writer = None
         self.keep_buf = keep_buf
@@ -22,8 +24,8 @@ class VecMonitor(VecEnvWrapper):
 
     def reset(self):
         obs = self.venv.reset()
-        self.eprets = np.zeros(self.num_envs, 'f')
-        self.eplens = np.zeros(self.num_envs, 'i')
+        self.eprets = np.zeros(self.num_envs, u'f')
+        self.eplens = np.zeros(self.num_envs, u'i')
         return obs
 
     def step_wait(self):
@@ -31,11 +33,11 @@ class VecMonitor(VecEnvWrapper):
         self.eprets += rews
         self.eplens += 1
         newinfos = []
-        for (i, (done, ret, eplen, info)) in enumerate(zip(dones, self.eprets, self.eplens, infos)):
+        for (i, (done, ret, eplen, info)) in enumerate(izip(dones, self.eprets, self.eplens, infos)):
             info = info.copy()
             if done:
-                epinfo = {'r': ret, 'l': eplen, 't': round(time.time() - self.tstart, 6)}
-                info['episode'] = epinfo
+                epinfo = {u'r': ret, u'l': eplen, u't': round(time.time() - self.tstart, 6)}
+                info[u'episode'] = epinfo
                 if self.keep_buf:
                     self.epret_buf.append(ret)
                     self.eplen_buf.append(eplen)

@@ -1,9 +1,10 @@
+from __future__ import absolute_import
 import operator
 
 
 class SegmentTree(object):
     def __init__(self, capacity, operation, neutral_element):
-        """Build a Segment Tree data structure.
+        u"""Build a Segment Tree data structure.
 
         https://en.wikipedia.org/wiki/Segment_tree
 
@@ -28,9 +29,9 @@ class SegmentTree(object):
             neutral element for the operation above. eg. float('-inf')
             for max and 0 for sum.
         """
-        assert capacity > 0 and capacity & (capacity - 1) == 0, "capacity must be positive and a power of 2."
+        assert capacity > 0 and capacity & (capacity - 1) == 0, u"capacity must be positive and a power of 2."
         self._capacity = capacity
-        self._value = [neutral_element for _ in range(2 * capacity)]
+        self._value = [neutral_element for _ in xrange(2 * capacity)]
         self._operation = operation
 
     def _reduce_helper(self, start, end, node, node_start, node_end):
@@ -49,7 +50,7 @@ class SegmentTree(object):
                 )
 
     def reduce(self, start=0, end=None):
-        """Returns result of applying `self.operation`
+        u"""Returns result of applying `self.operation`
         to a contiguous subsequence of the array.
 
             self.operation(arr[start], operation(arr[start+1], operation(... arr[end])))
@@ -99,11 +100,11 @@ class SumSegmentTree(SegmentTree):
         )
 
     def sum(self, start=0, end=None):
-        """Returns arr[start] + ... + arr[end]"""
+        u"""Returns arr[start] + ... + arr[end]"""
         return super(SumSegmentTree, self).reduce(start, end)
 
     def find_prefixsum_idx(self, prefixsum):
-        """Find the highest index `i` in the array such that
+        u"""Find the highest index `i` in the array such that
             sum(arr[0] + arr[1] + ... + arr[i - i]) <= prefixsum
 
         if array values are probabilities, this function
@@ -136,10 +137,10 @@ class MinSegmentTree(SegmentTree):
         super(MinSegmentTree, self).__init__(
             capacity=capacity,
             operation=min,
-            neutral_element=float('inf')
+            neutral_element=float(u'inf')
         )
 
     def min(self, start=0, end=None):
-        """Returns min(arr[start], ...,  arr[end])"""
+        u"""Returns min(arr[start], ...,  arr[end])"""
 
         return super(MinSegmentTree, self).reduce(start, end)

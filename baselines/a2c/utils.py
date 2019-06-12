@@ -1,7 +1,11 @@
+from __future__ import with_statement
+from __future__ import division
+from __future__ import absolute_import
 import os
 import numpy as np
 import tensorflow as tf
 from collections import deque
+from itertools import izip
 
 def sample(logits):
     noise = tf.random_uniform(tf.shape(logits))
@@ -34,12 +38,23 @@ def ortho_init(scale=1.0):
         return (scale * q[:shape[0], :shape[1]]).astype(np.float32)
     return _ortho_init
 
-def conv(x, scope, *, nf, rf, stride, pad='VALID', init_scale=1.0, data_format='NHWC', one_dim_bias=False):
-    if data_format == 'NHWC':
+def conv(x, scope, **_3to2kwargs):
+    if 'one_dim_bias' in _3to2kwargs: one_dim_bias = _3to2kwargs['one_dim_bias']; del _3to2kwargs['one_dim_bias']
+    else: one_dim_bias = False
+    if 'data_format' in _3to2kwargs: data_format = _3to2kwargs['data_format']; del _3to2kwargs['data_format']
+    else: data_format = u'NHWC'
+    if 'init_scale' in _3to2kwargs: init_scale = _3to2kwargs['init_scale']; del _3to2kwargs['init_scale']
+    else: init_scale = 1.0
+    if 'pad' in _3to2kwargs: pad = _3to2kwargs['pad']; del _3to2kwargs['pad']
+    else: pad = u'VALID'
+    stride = _3to2kwargs['stride']; del _3to2kwargs['stride']
+    rf = _3to2kwargs['rf']; del _3to2kwargs['rf']
+    nf = _3to2kwargs['nf']; del _3to2kwargs['nf']
+    if data_format == u'NHWC':
         channel_ax = 3
         strides = [1, stride, stride, 1]
         bshape = [1, 1, 1, nf]
-    elif data_format == 'NCHW':
+    elif data_format == u'NCHW':
         channel_ax = 1
         strides = [1, 1, stride, stride]
         bshape = [1, nf, 1, 1]
@@ -49,17 +64,21 @@ def conv(x, scope, *, nf, rf, stride, pad='VALID', init_scale=1.0, data_format='
     nin = x.get_shape()[channel_ax].value
     wshape = [rf, rf, nin, nf]
     with tf.variable_scope(scope):
-        w = tf.get_variable("w", wshape, initializer=ortho_init(init_scale))
-        b = tf.get_variable("b", bias_var_shape, initializer=tf.constant_initializer(0.0))
-        if not one_dim_bias and data_format == 'NHWC':
+        w = tf.get_variable(u"w", wshape, initializer=ortho_init(init_scale))
+        b = tf.get_variable(u"b", bias_var_shape, initializer=tf.constant_initializer(0.0))
+        if not one_dim_bias and data_format == u'NHWC':
             b = tf.reshape(b, bshape)
         return tf.nn.conv2d(x, w, strides=strides, padding=pad, data_format=data_format) + b
 
-def fc(x, scope, nh, *, init_scale=1.0, init_bias=0.0):
+def fc(x, scope, nh, **_3to2kwargs):
+    if 'init_bias' in _3to2kwargs: init_bias = _3to2kwargs['init_bias']; del _3to2kwargs['init_bias']
+    else: init_bias = 0.0
+    if 'init_scale' in _3to2kwargs: init_scale = _3to2kwargs['init_scale']; del _3to2kwargs['init_scale']
+    else: init_scale = 1.0
     with tf.variable_scope(scope):
         nin = x.get_shape()[1].value
-        w = tf.get_variable("w", [nin, nh], initializer=ortho_init(init_scale))
-        b = tf.get_variable("b", [nh], initializer=tf.constant_initializer(init_bias))
+        w = tf.get_variable(u"w", [nin, nh], initializer=ortho_init(init_scale))
+        b = tf.get_variable(u"b", [nh], initializer=tf.constant_initializer(init_bias))
         return tf.matmul(x, w)+b
 
 def batch_to_seq(h, nbatch, nsteps, flat=False):
@@ -81,12 +100,12 @@ def seq_to_batch(h, flat = False):
 def lstm(xs, ms, s, scope, nh, init_scale=1.0):
     nbatch, nin = [v.value for v in xs[0].get_shape()]
     with tf.variable_scope(scope):
-        wx = tf.get_variable("wx", [nin, nh*4], initializer=ortho_init(init_scale))
-        wh = tf.get_variable("wh", [nh, nh*4], initializer=ortho_init(init_scale))
-        b = tf.get_variable("b", [nh*4], initializer=tf.constant_initializer(0.0))
+        wx = tf.get_variable(u"wx", [nin, nh*4], initializer=ortho_init(init_scale))
+        wh = tf.get_variable(u"wh", [nh, nh*4], initializer=ortho_init(init_scale))
+        b = tf.get_variable(u"b", [nh*4], initializer=tf.constant_initializer(0.0))
 
     c, h = tf.split(axis=1, num_or_size_splits=2, value=s)
-    for idx, (x, m) in enumerate(zip(xs, ms)):
+    for idx, (x, m) in enumerate(izip(xs, ms)):
         c = c*(1-m)
         h = h*(1-m)
         z = tf.matmul(x, wx) + tf.matmul(h, wh) + b
@@ -110,21 +129,21 @@ def _ln(x, g, b, e=1e-5, axes=[1]):
 def lnlstm(xs, ms, s, scope, nh, init_scale=1.0):
     nbatch, nin = [v.value for v in xs[0].get_shape()]
     with tf.variable_scope(scope):
-        wx = tf.get_variable("wx", [nin, nh*4], initializer=ortho_init(init_scale))
-        gx = tf.get_variable("gx", [nh*4], initializer=tf.constant_initializer(1.0))
-        bx = tf.get_variable("bx", [nh*4], initializer=tf.constant_initializer(0.0))
+        wx = tf.get_variable(u"wx", [nin, nh*4], initializer=ortho_init(init_scale))
+        gx = tf.get_variable(u"gx", [nh*4], initializer=tf.constant_initializer(1.0))
+        bx = tf.get_variable(u"bx", [nh*4], initializer=tf.constant_initializer(0.0))
 
-        wh = tf.get_variable("wh", [nh, nh*4], initializer=ortho_init(init_scale))
-        gh = tf.get_variable("gh", [nh*4], initializer=tf.constant_initializer(1.0))
-        bh = tf.get_variable("bh", [nh*4], initializer=tf.constant_initializer(0.0))
+        wh = tf.get_variable(u"wh", [nh, nh*4], initializer=ortho_init(init_scale))
+        gh = tf.get_variable(u"gh", [nh*4], initializer=tf.constant_initializer(1.0))
+        bh = tf.get_variable(u"bh", [nh*4], initializer=tf.constant_initializer(0.0))
 
-        b = tf.get_variable("b", [nh*4], initializer=tf.constant_initializer(0.0))
+        b = tf.get_variable(u"b", [nh*4], initializer=tf.constant_initializer(0.0))
 
-        gc = tf.get_variable("gc", [nh], initializer=tf.constant_initializer(1.0))
-        bc = tf.get_variable("bc", [nh], initializer=tf.constant_initializer(0.0))
+        gc = tf.get_variable(u"gc", [nh], initializer=tf.constant_initializer(1.0))
+        bc = tf.get_variable(u"bc", [nh], initializer=tf.constant_initializer(0.0))
 
     c, h = tf.split(axis=1, num_or_size_splits=2, value=s)
-    for idx, (x, m) in enumerate(zip(xs, ms)):
+    for idx, (x, m) in enumerate(izip(xs, ms)):
         c = c*(1-m)
         h = h*(1-m)
         z = _ln(tf.matmul(x, wx), gx, bx) + _ln(tf.matmul(h, wh), gh, bh) + b
@@ -147,7 +166,7 @@ def conv_to_fc(x):
 def discount_with_dones(rewards, dones, gamma):
     discounted = []
     r = 0
-    for reward, done in zip(rewards[::-1], dones[::-1]):
+    for reward, done in izip(rewards[::-1], dones[::-1]):
         r = reward + gamma*r*(1.-done) # fixed off by one bug
         discounted.append(r)
     return discounted[::-1]
@@ -187,11 +206,11 @@ def double_middle_drop(p):
     return 1-p
 
 schedules = {
-    'linear':linear,
-    'constant':constant,
-    'double_linear_con': double_linear_con,
-    'middle_drop': middle_drop,
-    'double_middle_drop': double_middle_drop
+    u'linear':linear,
+    u'constant':constant,
+    u'double_linear_con': double_linear_con,
+    u'middle_drop': middle_drop,
+    u'double_middle_drop': double_middle_drop
 }
 
 class Scheduler(object):
@@ -211,10 +230,10 @@ class Scheduler(object):
         return self.v*self.schedule(steps/self.nvalues)
 
 
-class EpisodeStats:
+class EpisodeStats(object):
     def __init__(self, nsteps, nenvs):
         self.episode_rewards = []
-        for i in range(nenvs):
+        for i in xrange(nenvs):
             self.episode_rewards.append([])
         self.lenbuffer = deque(maxlen=40)  # rolling buffer for episode lengths
         self.rewbuffer = deque(maxlen=40)  # rolling buffer for episode rewards
@@ -224,8 +243,8 @@ class EpisodeStats:
     def feed(self, rewards, masks):
         rewards = np.reshape(rewards, [self.nenvs, self.nsteps])
         masks = np.reshape(masks, [self.nenvs, self.nsteps])
-        for i in range(0, self.nenvs):
-            for j in range(0, self.nsteps):
+        for i in xrange(0, self.nenvs):
+            for j in xrange(0, self.nsteps):
                 self.episode_rewards[i].append(rewards[i][j])
                 if masks[i][j]:
                     l = len(self.episode_rewards[i])
@@ -258,15 +277,15 @@ def get_by_index(x, idx):
 
 def check_shape(ts,shapes):
     i = 0
-    for (t,shape) in zip(ts,shapes):
-        assert t.get_shape().as_list()==shape, "id " + str(i) + " shape " + str(t.get_shape()) + str(shape)
+    for (t,shape) in izip(ts,shapes):
+        assert t.get_shape().as_list()==shape, u"id " + unicode(i) + u" shape " + unicode(t.get_shape()) + unicode(shape)
         i += 1
 
 def avg_norm(t):
     return tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.square(t), axis=-1)))
 
 def gradient_add(g1, g2, param):
-    print([g1, g2, param.name])
+    print [g1, g2, param.name]
     assert (not (g1 is None and g2 is None)), param.name
     if g1 is None:
         return g2

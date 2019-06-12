@@ -1,14 +1,16 @@
+from __future__ import absolute_import
 import numpy as np
 import tensorflow as tf
 from baselines.common import tf_util as U
 from baselines.common.tests.test_with_mpi import with_mpi
+from itertools import izip
 try:
     from mpi4py import MPI
 except ImportError:
     MPI = None
 
 class MpiAdamOptimizer(tf.train.AdamOptimizer):
-    """Adam optimizer that averages gradients across mpi processes."""
+    u"""Adam optimizer that averages gradients across mpi processes."""
     def __init__(self, comm, **kwargs):
         self.comm = comm
         tf.train.AdamOptimizer.__init__(self, **kwargs)
@@ -34,11 +36,11 @@ class MpiAdamOptimizer(tf.train.AdamOptimizer):
         avg_flat_grad.set_shape(flat_grad.shape)
         avg_grads = tf.split(avg_flat_grad, sizes, axis=0)
         avg_grads_and_vars = [(tf.reshape(g, v.shape), v)
-                    for g, (_, v) in zip(avg_grads, grads_and_vars)]
+                    for g, (_, v) in izip(avg_grads, grads_and_vars)]
         return avg_grads_and_vars
 
 def check_synced(localval, comm=None):
-    """
+    u"""
     It's common to forget to initialize your variables to the same values, or
     (less commonly) if you update them in some other way than adam, to get them out of sync.
     This function checks that variables on all MPI workers are the same, and raises
@@ -59,8 +61,8 @@ def test_nonfreeze():
     np.random.seed(0)
     tf.set_random_seed(0)
 
-    a = tf.Variable(np.random.randn(3).astype('float32'))
-    b = tf.Variable(np.random.randn(2,5).astype('float32'))
+    a = tf.Variable(np.random.randn(3).astype(u'float32'))
+    b = tf.Variable(np.random.randn(2,5).astype(u'float32'))
     loss = tf.reduce_sum(tf.square(a)) + tf.reduce_sum(tf.sin(b))
 
     stepsize = 1e-2
@@ -71,8 +73,8 @@ def test_nonfreeze():
     update_op = MpiAdamOptimizer(comm=MPI.COMM_WORLD, learning_rate=stepsize).minimize(loss)
     sess.run(tf.global_variables_initializer())
     losslist_ref = []
-    for i in range(100):
+    for i in xrange(100):
         l,_ = sess.run([loss, update_op])
-        print(i, l)
+        print i, l
         losslist_ref.append(l)
 

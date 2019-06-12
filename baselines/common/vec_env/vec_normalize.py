@@ -1,10 +1,12 @@
+from __future__ import division
+from __future__ import absolute_import
 from . import VecEnvWrapper
 from baselines.common.running_mean_std import RunningMeanStd
 import numpy as np
 
 
 class VecNormalize(VecEnvWrapper):
-    """
+    u"""
     A vectorized wrapper that normalizes the observations
     and returns from an environment.
     """

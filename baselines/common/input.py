@@ -1,9 +1,10 @@
+from __future__ import absolute_import
 import numpy as np
 import tensorflow as tf
 from gym.spaces import Discrete, Box, MultiDiscrete
 
-def observation_placeholder(ob_space, batch_size=None, name='Ob'):
-    '''
+def observation_placeholder(ob_space, batch_size=None, name=u'Ob'):
+    u'''
     Create placeholder to feed observations into of the size appropriate to the observation space
 
     Parameters:
@@ -22,7 +23,7 @@ def observation_placeholder(ob_space, batch_size=None, name='Ob'):
     '''
 
     assert isinstance(ob_space, Discrete) or isinstance(ob_space, Box) or isinstance(ob_space, MultiDiscrete), \
-        'Can only deal with Discrete and Box observation spaces for now'
+        u'Can only deal with Discrete and Box observation spaces for now'
 
     dtype = ob_space.dtype
     if dtype == np.int8:
@@ -31,8 +32,8 @@ def observation_placeholder(ob_space, batch_size=None, name='Ob'):
     return tf.placeholder(shape=(batch_size,) + ob_space.shape, dtype=dtype, name=name)
 
 
-def observation_input(ob_space, batch_size=None, name='Ob'):
-    '''
+def observation_input(ob_space, batch_size=None, name=u'Ob'):
+    u'''
     Create placeholder to feed observations into of the size appropriate to the observation space, and add input
     encoder of the appropriate type.
     '''
@@ -41,7 +42,7 @@ def observation_input(ob_space, batch_size=None, name='Ob'):
     return placeholder, encode_observation(ob_space, placeholder)
 
 def encode_observation(ob_space, placeholder):
-    '''
+    u'''
     Encode input in the way that is appropriate to the observation space
 
     Parameters:
@@ -57,7 +58,7 @@ def encode_observation(ob_space, placeholder):
         return tf.to_float(placeholder)
     elif isinstance(ob_space, MultiDiscrete):
         placeholder = tf.cast(placeholder, tf.int32)
-        one_hots = [tf.to_float(tf.one_hot(placeholder[..., i], ob_space.nvec[i])) for i in range(placeholder.shape[-1])]
+        one_hots = [tf.to_float(tf.one_hot(placeholder[..., i], ob_space.nvec[i])) for i in xrange(placeholder.shape[-1])]
         return tf.concat(one_hots, axis=-1)
     else:
         raise NotImplementedError

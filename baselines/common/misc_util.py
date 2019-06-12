@@ -1,3 +1,5 @@
+from __future__ import with_statement
+from __future__ import absolute_import
 import gym
 import numpy as np
 import os
@@ -5,16 +7,18 @@ import pickle
 import random
 import tempfile
 import zipfile
+from itertools import izip
+from io import open
 
 
 def zipsame(*seqs):
     L = len(seqs[0])
     assert all(len(seq) == L for seq in seqs[1:])
-    return zip(*seqs)
+    return izip(*seqs)
 
 
 class EzPickle(object):
-    """Objects that are pickled and unpickled via their constructor
+    u"""Objects that are pickled and unpickled via their constructor
     arguments.
 
     Example usage:
@@ -38,10 +42,10 @@ class EzPickle(object):
         self._ezpickle_kwargs = kwargs
 
     def __getstate__(self):
-        return {"_ezpickle_args": self._ezpickle_args, "_ezpickle_kwargs": self._ezpickle_kwargs}
+        return {u"_ezpickle_args": self._ezpickle_args, u"_ezpickle_kwargs": self._ezpickle_kwargs}
 
     def __setstate__(self, d):
-        out = type(self)(*d["_ezpickle_args"], **d["_ezpickle_kwargs"])
+        out = type(self)(*d[u"_ezpickle_args"], **d[u"_ezpickle_kwargs"])
         self.__dict__.update(out.__dict__)
 
 
@@ -63,7 +67,7 @@ def set_global_seeds(i):
 
 
 def pretty_eta(seconds_left):
-    """Print the number of seconds in human readable format.
+    u"""Print the number of seconds in human readable format.
 
     Examples:
     2 days
@@ -87,26 +91,26 @@ def pretty_eta(seconds_left):
     hours_left %= 24
 
     def helper(cnt, name):
-        return "{} {}{}".format(str(cnt), name, ('s' if cnt > 1 else ''))
+        return u"{} {}{}".format(unicode(cnt), name, (u's' if cnt > 1 else u''))
 
     if days_left > 0:
-        msg = helper(days_left, 'day')
+        msg = helper(days_left, u'day')
         if hours_left > 0:
-            msg += ' and ' + helper(hours_left, 'hour')
+            msg += u' and ' + helper(hours_left, u'hour')
         return msg
     if hours_left > 0:
-        msg = helper(hours_left, 'hour')
+        msg = helper(hours_left, u'hour')
         if minutes_left > 0:
-            msg += ' and ' + helper(minutes_left, 'minute')
+            msg += u' and ' + helper(minutes_left, u'minute')
         return msg
     if minutes_left > 0:
-        return helper(minutes_left, 'minute')
-    return 'less than a minute'
+        return helper(minutes_left, u'minute')
+    return u'less than a minute'
 
 
 class RunningAvg(object):
     def __init__(self, gamma, init_value=None):
-        """Keep a running estimate of a quantity. This is a bit like mean
+        u"""Keep a running estimate of a quantity. This is a bit like mean
         but more sensitive to recent changes.
 
         Parameters
@@ -121,7 +125,7 @@ class RunningAvg(object):
         self._gamma = gamma
 
     def update(self, new_val):
-        """Update the estimate.
+        u"""Update the estimate.
 
         Parameters
         ----------
@@ -134,11 +138,11 @@ class RunningAvg(object):
             self._value = self._gamma * self._value + (1.0 - self._gamma) * new_val
 
     def __float__(self):
-        """Get the current estimate"""
+        u"""Get the current estimate"""
         return self._value
 
 def boolean_flag(parser, name, default=False, help=None):
-    """Add a boolean flag to argparse parser.
+    u"""Add a boolean flag to argparse parser.
 
     Parameters
     ----------
@@ -151,13 +155,13 @@ def boolean_flag(parser, name, default=False, help=None):
     help: str
         help string for the flag
     """
-    dest = name.replace('-', '_')
-    parser.add_argument("--" + name, action="store_true", default=default, dest=dest, help=help)
-    parser.add_argument("--no-" + name, action="store_false", dest=dest)
+    dest = name.replace(u'-', u'_')
+    parser.add_argument(u"--" + name, action=u"store_true", default=default, dest=dest, help=help)
+    parser.add_argument(u"--no-" + name, action=u"store_false", dest=dest)
 
 
 def get_wrapper_by_name(env, classname):
-    """Given an a gym environment possibly wrapped multiple times, returns a wrapper
+    u"""Given an a gym environment possibly wrapped multiple times, returns a wrapper
     of class named classname or raises ValueError if no such wrapper was applied
 
     Parameters
@@ -179,11 +183,11 @@ def get_wrapper_by_name(env, classname):
         elif isinstance(currentenv, gym.Wrapper):
             currentenv = currentenv.env
         else:
-            raise ValueError("Couldn't find wrapper named %s" % classname)
+            raise ValueError(u"Couldn't find wrapper named %s" % classname)
 
 
 def relatively_safe_pickle_dump(obj, path, compression=False):
-    """This is just like regular pickle dump, except from the fact that failure cases are
+    u"""This is just like regular pickle dump, except from the fact that failure cases are
     different:
 
         - It's never possible that we end up with a pickle in corrupted state.
@@ -204,22 +208,22 @@ def relatively_safe_pickle_dump(obj, path, compression=False):
     compression: bool
         if true pickle will be compressed
     """
-    temp_storage = path + ".relatively_safe"
+    temp_storage = path + u".relatively_safe"
     if compression:
         # Using gzip here would be simpler, but the size is limited to 2GB
         with tempfile.NamedTemporaryFile() as uncompressed_file:
             pickle.dump(obj, uncompressed_file)
             uncompressed_file.file.flush()
-            with zipfile.ZipFile(temp_storage, "w", compression=zipfile.ZIP_DEFLATED) as myzip:
-                myzip.write(uncompressed_file.name, "data")
+            with zipfile.ZipFile(temp_storage, u"w", compression=zipfile.ZIP_DEFLATED) as myzip:
+                myzip.write(uncompressed_file.name, u"data")
     else:
-        with open(temp_storage, "wb") as f:
+        with open(temp_storage, u"wb") as f:
             pickle.dump(obj, f)
     os.rename(temp_storage, path)
 
 
 def pickle_load(path, compression=False):
-    """Unpickle a possible compressed pickle.
+    u"""Unpickle a possible compressed pickle.
 
     Parameters
     ----------
@@ -235,9 +239,9 @@ def pickle_load(path, compression=False):
     """
 
     if compression:
-        with zipfile.ZipFile(path, "r", compression=zipfile.ZIP_DEFLATED) as myzip:
-            with myzip.open("data") as f:
+        with zipfile.ZipFile(path, u"r", compression=zipfile.ZIP_DEFLATED) as myzip:
+            with myzip.open(u"data") as f:
                 return pickle.load(f)
     else:
-        with open(path, "rb") as f:
+        with open(path, u"rb") as f:
             return pickle.load(f)

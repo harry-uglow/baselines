@@ -1,3 +1,6 @@
+from __future__ import division
+from __future__ import with_statement
+from __future__ import absolute_import
 import numpy as np
 import tensorflow as tf  # pylint: ignore-module
 import copy
@@ -5,9 +8,11 @@ import os
 import functools
 import collections
 import multiprocessing
+from itertools import izip
+from itertools import imap
 
 def switch(condition, then_expression, else_expression):
-    """Switches between two operations depending on a scalar value (int or bool).
+    u"""Switches between two operations depending on a scalar value (int or bool).
     Note that both `then_expression` and `else_expression`
     should be symbolic tensors of the *same shape*.
 
@@ -17,7 +22,7 @@ def switch(condition, then_expression, else_expression):
         else_expression: TensorFlow operation.
     """
     x_shape = copy.copy(then_expression.get_shape())
-    x = tf.cond(tf.cast(condition, 'bool'),
+    x = tf.cond(tf.cast(condition, u'bool'),
                 lambda: then_expression,
                 lambda: else_expression)
     x.set_shape(x_shape)
@@ -37,7 +42,7 @@ def lrelu(x, leak=0.2):
 # ================================================================
 
 def huber_loss(x, delta=1.0):
-    """Reference: https://en.wikipedia.org/wiki/Huber_loss"""
+    u"""Reference: https://en.wikipedia.org/wiki/Huber_loss"""
     return tf.where(
         tf.abs(x) < delta,
         tf.square(x) * 0.5,
@@ -49,16 +54,16 @@ def huber_loss(x, delta=1.0):
 # ================================================================
 
 def get_session(config=None):
-    """Get default session or create one with a given config"""
+    u"""Get default session or create one with a given config"""
     sess = tf.get_default_session()
     if sess is None:
         sess = make_session(config=config, make_default=True)
     return sess
 
 def make_session(config=None, num_cpu=None, make_default=False, graph=None):
-    """Returns a session that will use <num_cpu> CPU's only"""
+    u"""Returns a session that will use <num_cpu> CPU's only"""
     if num_cpu is None:
-        num_cpu = int(os.getenv('RCALL_NUM_CPU', multiprocessing.cpu_count()))
+        num_cpu = int(os.getenv(u'RCALL_NUM_CPU', multiprocessing.cpu_count()))
     if config is None:
         config = tf.ConfigProto(
             allow_soft_placement=True,
@@ -72,7 +77,7 @@ def make_session(config=None, num_cpu=None, make_default=False, graph=None):
         return tf.Session(config=config, graph=graph)
 
 def single_threaded_session():
-    """Returns a session which will only use a single CPU"""
+    u"""Returns a session which will only use a single CPU"""
     return make_session(num_cpu=1)
 
 def in_session(f):
@@ -85,7 +90,7 @@ def in_session(f):
 ALREADY_INITIALIZED = set()
 
 def initialize():
-    """Initialize all the uninitialized variables in the global scope."""
+    u"""Initialize all the uninitialized variables in the global scope."""
     new_variables = set(tf.global_variables()) - ALREADY_INITIALIZED
     get_session().run(tf.variables_initializer(new_variables))
     ALREADY_INITIALIZED.update(new_variables)
@@ -101,7 +106,7 @@ def normc_initializer(std=1.0, axis=0):
         return tf.constant(out)
     return _initializer
 
-def conv2d(x, num_filters, name, filter_size=(3, 3), stride=(1, 1), pad="SAME", dtype=tf.float32, collections=None,
+def conv2d(x, num_filters, name, filter_size=(3, 3), stride=(1, 1), pad=u"SAME", dtype=tf.float32, collections=None,
            summary_tag=None):
     with tf.variable_scope(name):
         stride_shape = [1, stride[0], stride[1], 1]
@@ -117,9 +122,9 @@ def conv2d(x, num_filters, name, filter_size=(3, 3), stride=(1, 1), pad="SAME", 
         # initialize weights with random weights
         w_bound = np.sqrt(6. / (fan_in + fan_out))
 
-        w = tf.get_variable("W", filter_shape, dtype, tf.random_uniform_initializer(-w_bound, w_bound),
+        w = tf.get_variable(u"W", filter_shape, dtype, tf.random_uniform_initializer(-w_bound, w_bound),
                             collections=collections)
-        b = tf.get_variable("b", [1, 1, 1, num_filters], initializer=tf.zeros_initializer(),
+        b = tf.get_variable(u"b", [1, 1, 1, num_filters], initializer=tf.zeros_initializer(),
                             collections=collections)
 
         if summary_tag is not None:
@@ -135,7 +140,7 @@ def conv2d(x, num_filters, name, filter_size=(3, 3), stride=(1, 1), pad="SAME", 
 # ================================================================
 
 def function(inputs, outputs, updates=None, givens=None):
-    """Just like Theano function. Take a bunch of tensorflow placeholders and expressions
+    u"""Just like Theano function. Take a bunch of tensorflow placeholders and expressions
     computed based on those placeholders and produces f(inputs) -> outputs. Function f takes
     values to be fed to the input's placeholders and produces the values of the expressions
     in outputs.
@@ -173,7 +178,7 @@ def function(inputs, outputs, updates=None, givens=None):
         return _Function(inputs, outputs, updates, givens=givens)
     elif isinstance(outputs, (dict, collections.OrderedDict)):
         f = _Function(inputs, outputs.values(), updates, givens=givens)
-        return lambda *args, **kwargs: type(outputs)(zip(outputs.keys(), f(*args, **kwargs)))
+        return lambda *args, **kwargs: type(outputs)(izip(outputs.keys(), f(*args, **kwargs)))
     else:
         f = _Function(inputs, [outputs], updates, givens=givens)
         return lambda *args, **kwargs: f(*args, **kwargs)[0]
@@ -182,29 +187,29 @@ def function(inputs, outputs, updates=None, givens=None):
 class _Function(object):
     def __init__(self, inputs, outputs, updates, givens):
         for inpt in inputs:
-            if not hasattr(inpt, 'make_feed_dict') and not (type(inpt) is tf.Tensor and len(inpt.op.inputs) == 0):
-                assert False, "inputs should all be placeholders, constants, or have a make_feed_dict method"
+            if not hasattr(inpt, u'make_feed_dict') and not (type(inpt) is tf.Tensor and len(inpt.op.inputs) == 0):
+                assert False, u"inputs should all be placeholders, constants, or have a make_feed_dict method"
         self.inputs = inputs
-        self.input_names = {inp.name.split("/")[-1].split(":")[0]: inp for inp in inputs}
+        self.input_names = dict((inp.name.split(u"/")[-1].split(u":")[0], inp) for inp in inputs)
         updates = updates or []
         self.update_group = tf.group(*updates)
         self.outputs_update = list(outputs) + [self.update_group]
         self.givens = {} if givens is None else givens
 
     def _feed_input(self, feed_dict, inpt, value):
-        if hasattr(inpt, 'make_feed_dict'):
+        if hasattr(inpt, u'make_feed_dict'):
             feed_dict.update(inpt.make_feed_dict(value))
         else:
             feed_dict[inpt] = adjust_shape(inpt, value)
 
     def __call__(self, *args, **kwargs):
-        assert len(args) + len(kwargs) <= len(self.inputs), "Too many arguments provided"
+        assert len(args) + len(kwargs) <= len(self.inputs), u"Too many arguments provided"
         feed_dict = {}
         # Update feed dict with givens.
         for inpt in self.givens:
             feed_dict[inpt] = adjust_shape(inpt, feed_dict.get(inpt, self.givens[inpt]))
         # Update the args
-        for inpt, value in zip(self.inputs, args):
+        for inpt, value in izip(self.inputs, args):
             self._feed_input(feed_dict, inpt, value)
         for inpt_name, value in kwargs.items():
             self._feed_input(feed_dict, self.input_names[inpt_name], value)
@@ -218,7 +223,7 @@ class _Function(object):
 def var_shape(x):
     out = x.get_shape().as_list()
     assert all(isinstance(a, int) for a in out), \
-        "shape function assumes that shape is fully known"
+        u"shape function assumes that shape is fully known"
     return out
 
 def numel(x):
@@ -233,19 +238,19 @@ def flatgrad(loss, var_list, clip_norm=None):
         grads = [tf.clip_by_norm(grad, clip_norm=clip_norm) for grad in grads]
     return tf.concat(axis=0, values=[
         tf.reshape(grad if grad is not None else tf.zeros_like(v), [numel(v)])
-        for (v, grad) in zip(var_list, grads)
+        for (v, grad) in izip(var_list, grads)
     ])
 
 class SetFromFlat(object):
     def __init__(self, var_list, dtype=tf.float32):
         assigns = []
-        shapes = list(map(var_shape, var_list))
+        shapes = list(imap(var_shape, var_list))
         total_size = np.sum([intprod(shape) for shape in shapes])
 
         self.theta = theta = tf.placeholder(dtype, [total_size])
         start = 0
         assigns = []
-        for (shape, v) in zip(shapes, var_list):
+        for (shape, v) in izip(shapes, var_list):
             size = intprod(shape)
             assigns.append(tf.assign(v, tf.reshape(theta[start:start + size], shape)))
             start += size
@@ -275,7 +280,7 @@ def get_placeholder(name, dtype, shape):
         out, dtype1, shape1 = _PLACEHOLDER_CACHE[name]
         if out.graph == tf.get_default_graph():
             assert dtype1 == dtype and shape1 == shape, \
-                'Placeholder with name {} has already been registered and has shape {}, different from requested {}'.format(name, shape1, shape)
+                u'Placeholder with name {} has already been registered and has shape {}, different from requested {}'.format(name, shape1, shape)
             return out
 
     out = tf.placeholder(dtype=dtype, shape=shape, name=name)
@@ -296,13 +301,13 @@ def display_var_info(vars):
     count_params = 0
     for v in vars:
         name = v.name
-        if "/Adam" in name or "beta1_power" in name or "beta2_power" in name: continue
+        if u"/Adam" in name or u"beta1_power" in name or u"beta2_power" in name: continue
         v_params = np.prod(v.shape.as_list())
         count_params += v_params
-        if "/b:" in name or "/bias" in name: continue    # Wx+b, bias is not interesting to look at => count params, but not print
-        logger.info("   %s%s %i params %s" % (name, " "*(55-len(name)), v_params, str(v.shape)))
+        if u"/b:" in name or u"/bias" in name: continue    # Wx+b, bias is not interesting to look at => count params, but not print
+        logger.info(u"   %s%s %i params %s" % (name, u" "*(55-len(name)), v_params, unicode(v.shape)))
 
-    logger.info("Total model parameters: %0.2f million" % (count_params*1e-6))
+    logger.info(u"Total model parameters: %0.2f million" % (count_params*1e-6))
 
 
 def get_available_gpus(session_config=None):
@@ -316,7 +321,7 @@ def get_available_gpus(session_config=None):
 
     from tensorflow.python.client import device_lib
     local_device_protos = device_lib.list_local_devices(session_config)
-    return [x.name for x in local_device_protos if x.device_type == 'GPU']
+    return [x.name for x in local_device_protos if x.device_type == u'GPU']
 
 # ================================================================
 # Saving variables
@@ -324,14 +329,14 @@ def get_available_gpus(session_config=None):
 
 def load_state(fname, sess=None):
     from baselines import logger
-    logger.warn('load_state method is deprecated, please use load_variables instead')
+    logger.warn(u'load_state method is deprecated, please use load_variables instead')
     sess = sess or get_session()
     saver = tf.train.Saver()
     saver.restore(tf.get_default_session(), fname)
 
 def save_state(fname, sess=None):
     from baselines import logger
-    logger.warn('save_state method is deprecated, please use save_variables instead')
+    logger.warn(u'save_state method is deprecated, please use save_variables instead')
     sess = sess or get_session()
     dirname = os.path.dirname(fname)
     if any(dirname):
@@ -348,7 +353,7 @@ def save_variables(save_path, variables=None, sess=None):
     variables = variables or tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
 
     ps = sess.run(variables)
-    save_dict = {v.name: value for v, value in zip(variables, ps)}
+    save_dict = dict((v.name, value) for v, value in izip(variables, ps))
     dirname = os.path.dirname(save_path)
     if any(dirname):
         os.makedirs(dirname, exist_ok=True)
@@ -362,8 +367,8 @@ def load_variables(load_path, variables=None, sess=None):
     loaded_params = joblib.load(os.path.expanduser(load_path))
     restores = []
     if isinstance(loaded_params, list):
-        assert len(loaded_params) == len(variables), 'number of variables loaded mismatches len(variables)'
-        for d, v in zip(loaded_params, variables):
+        assert len(loaded_params) == len(variables), u'number of variables loaded mismatches len(variables)'
+        for d, v in izip(loaded_params, variables):
             restores.append(v.assign(d))
     else:
         for v in variables:
@@ -375,7 +380,7 @@ def load_variables(load_path, variables=None, sess=None):
 # Shape adjustment for feeding into tf placeholders
 # ================================================================
 def adjust_shape(placeholder, data):
-    '''
+    u'''
     adjust shape of the data to the shape of the placeholder if possible.
     If shape is incompatible, AssertionError is thrown
 
@@ -396,13 +401,13 @@ def adjust_shape(placeholder, data):
     placeholder_shape = [x or -1 for x in placeholder.shape.as_list()]
 
     assert _check_shape(placeholder_shape, data.shape), \
-        'Shape of data {} is not compatible with shape of the placeholder {}'.format(data.shape, placeholder_shape)
+        u'Shape of data {} is not compatible with shape of the placeholder {}'.format(data.shape, placeholder_shape)
 
     return np.reshape(data, placeholder_shape)
 
 
 def _check_shape(placeholder_shape, data_shape):
-    ''' check if two shapes are compatible (i.e. differ only by dimensions of size 1, or by the batch dimension)'''
+    u''' check if two shapes are compatible (i.e. differ only by dimensions of size 1, or by the batch dimension)'''
 
     return True
     squeezed_placeholder_shape = _squeeze_shape(placeholder_shape)
@@ -424,7 +429,7 @@ def _squeeze_shape(shape):
 # ================================================================
 
 def launch_tensorboard_in_background(log_dir):
-    '''
+    u'''
     To log the Tensorflow graph when using rl-algs
     algorithms, you can run the following code
     in your main script:
@@ -440,4 +445,4 @@ def launch_tensorboard_in_background(log_dir):
         t.start()
     '''
     import subprocess
-    subprocess.Popen(['tensorboard', '--logdir', log_dir])
+    subprocess.Popen([u'tensorboard', u'--logdir', log_dir])

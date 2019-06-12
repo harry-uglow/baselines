@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import numpy as np
 
 from baselines.common.schedules import ConstantSchedule, PiecewiseSchedule
@@ -22,5 +23,5 @@ def test_piecewise_schedule():
 
 def test_constant_schedule():
     cs = ConstantSchedule(5)
-    for i in range(-100, 100):
+    for i in xrange(-100, 100):
         assert np.isclose(cs.value(i), 5)

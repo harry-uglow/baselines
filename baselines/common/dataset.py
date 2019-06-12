@@ -1,11 +1,13 @@
+from __future__ import absolute_import
 import numpy as np
+from itertools import imap
 
 class Dataset(object):
     def __init__(self, data_map, deterministic=False, shuffle=True):
         self.data_map = data_map
         self.deterministic = deterministic
         self.enable_shuffle = shuffle
-        self.n = next(iter(data_map.values())).shape[0]
+        self.n = iter(data_map.values()).next().shape[0]
         self._next_id = 0
         self.shuffle()
 
@@ -47,9 +49,17 @@ class Dataset(object):
         return Dataset(data_map, deterministic)
 
 
-def iterbatches(arrays, *, num_batches=None, batch_size=None, shuffle=True, include_final_partial_batch=True):
-    assert (num_batches is None) != (batch_size is None), 'Provide num_batches or batch_size, but not both'
-    arrays = tuple(map(np.asarray, arrays))
+def iterbatches(arrays, **_3to2kwargs):
+    if 'include_final_partial_batch' in _3to2kwargs: include_final_partial_batch = _3to2kwargs['include_final_partial_batch']; del _3to2kwargs['include_final_partial_batch']
+    else: include_final_partial_batch = True
+    if 'shuffle' in _3to2kwargs: shuffle = _3to2kwargs['shuffle']; del _3to2kwargs['shuffle']
+    else: shuffle = True
+    if 'batch_size' in _3to2kwargs: batch_size = _3to2kwargs['batch_size']; del _3to2kwargs['batch_size']
+    else: batch_size = None
+    if 'num_batches' in _3to2kwargs: num_batches = _3to2kwargs['num_batches']; del _3to2kwargs['num_batches']
+    else: num_batches = None
+    assert (num_batches is None) != (batch_size is None), u'Provide num_batches or batch_size, but not both'
+    arrays = tuple(imap(np.asarray, arrays))
     n = arrays[0].shape[0]
     assert all(a.shape[0] == n for a in arrays[1:])
     inds = np.arange(n)

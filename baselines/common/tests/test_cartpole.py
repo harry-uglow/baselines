@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import pytest
 import gym
 
@@ -6,24 +7,24 @@ from baselines.common.tests.util import reward_per_episode_test
 
 common_kwargs = dict(
     total_timesteps=30000,
-    network='mlp',
+    network=u'mlp',
     gamma=1.0,
     seed=0,
 )
 
 learn_kwargs = {
-    'a2c' : dict(nsteps=32, value_network='copy', lr=0.05),
-    'acer': dict(value_network='copy'),
-    'acktr': dict(nsteps=32, value_network='copy', is_async=False),
-    'deepq': dict(total_timesteps=20000),
-    'ppo2': dict(value_network='copy'),
-    'trpo_mpi': {}
+    u'a2c' : dict(nsteps=32, value_network=u'copy', lr=0.05),
+    u'acer': dict(value_network=u'copy'),
+    u'acktr': dict(nsteps=32, value_network=u'copy', is_async=False),
+    u'deepq': dict(total_timesteps=20000),
+    u'ppo2': dict(value_network=u'copy'),
+    u'trpo_mpi': {}
 }
 
 @pytest.mark.slow
-@pytest.mark.parametrize("alg", learn_kwargs.keys())
+@pytest.mark.parametrize(u"alg", learn_kwargs.keys())
 def test_cartpole(alg):
-    '''
+    u'''
     Test if the algorithm (with an mlp policy)
     can learn to balance the cartpole
     '''
@@ -34,11 +35,11 @@ def test_cartpole(alg):
     learn_fn = lambda e: get_learn_function(alg)(env=e, **kwargs)
     def env_fn():
 
-        env = gym.make('CartPole-v0')
+        env = gym.make(u'CartPole-v0')
         env.seed(0)
         return env
 
     reward_per_episode_test(env_fn, learn_fn, 100)
 
-if __name__ == '__main__':
-    test_cartpole('acer')
+if __name__ == u'__main__':
+    test_cartpole(u'acer')

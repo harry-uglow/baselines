@@ -1,7 +1,9 @@
-"""
+u"""
 An interface for asynchronous vectorized environments.
 """
 
+from __future__ import with_statement
+from __future__ import absolute_import
 import multiprocessing as mp
 import numpy as np
 from .vec_env import VecEnv, CloudpickleWrapper, clear_mpi_env_vars
@@ -9,6 +11,7 @@ import ctypes
 from baselines import logger
 
 from .util import dict_to_obs, obs_space_info, obs_to_dict
+from itertools import izip
 
 _NP_TO_CT = {np.float32: ctypes.c_float,
              np.int32: ctypes.c_int32,
@@ -18,12 +21,12 @@ _NP_TO_CT = {np.float32: ctypes.c_float,
 
 
 class ShmemVecEnv(VecEnv):
-    """
+    u"""
     Optimized version of SubprocVecEnv that uses shared variables to communicate observations.
     """
 
-    def __init__(self, env_fns, spaces=None, context='spawn'):
-        """
+    def __init__(self, env_fns, spaces=None, context=u'spawn'):
+        u"""
         If you don't specify observation_space, we'll have to create a dummy
         environment to get it.
         """
@@ -31,7 +34,7 @@ class ShmemVecEnv(VecEnv):
         if spaces:
             observation_space, action_space = spaces
         else:
-            logger.log('Creating dummy env object to get spaces')
+            logger.log(u'Creating dummy env object to get spaces')
             with logger.scoped_configure(format_strs=[]):
                 dummy = env_fns[0]()
                 observation_space, action_space = dummy.observation_space, dummy.action_space
@@ -40,12 +43,12 @@ class ShmemVecEnv(VecEnv):
         VecEnv.__init__(self, len(env_fns), observation_space, action_space)
         self.obs_keys, self.obs_shapes, self.obs_dtypes = obs_space_info(observation_space)
         self.obs_bufs = [
-            {k: ctx.Array(_NP_TO_CT[self.obs_dtypes[k].type], int(np.prod(self.obs_shapes[k]))) for k in self.obs_keys}
+            dict((k, ctx.Array(_NP_TO_CT[self.obs_dtypes[k].type], int(np.prod(self.obs_shapes[k])))) for k in self.obs_keys)
             for _ in env_fns]
         self.parent_pipes = []
         self.procs = []
         with clear_mpi_env_vars():
-            for env_fn, obs_buf in zip(env_fns, self.obs_bufs):
+            for env_fn, obs_buf in izip(env_fns, self.obs_bufs):
                 wrapped_fn = CloudpickleWrapper(env_fn)
                 parent_pipe, child_pipe = ctx.Pipe()
                 proc = ctx.Process(target=_subproc_worker,
@@ -60,36 +63,36 @@ class ShmemVecEnv(VecEnv):
 
     def reset(self):
         if self.waiting_step:
-            logger.warn('Called reset() while waiting for the step to complete')
+            logger.warn(u'Called reset() while waiting for the step to complete')
             self.step_wait()
         for pipe in self.parent_pipes:
-            pipe.send(('reset', None))
+            pipe.send((u'reset', None))
         return self._decode_obses([pipe.recv() for pipe in self.parent_pipes])
 
     def step_async(self, actions):
         assert len(actions) == len(self.parent_pipes)
-        for pipe, act in zip(self.parent_pipes, actions):
-            pipe.send(('step', act))
+        for pipe, act in izip(self.parent_pipes, actions):
+            pipe.send((u'step', act))
 
     def step_wait(self):
         outs = [pipe.recv() for pipe in self.parent_pipes]
-        obs, rews, dones, infos = zip(*outs)
+        obs, rews, dones, infos = izip(*outs)
         return self._decode_obses(obs), np.array(rews), np.array(dones), infos
 
     def close_extras(self):
         if self.waiting_step:
             self.step_wait()
         for pipe in self.parent_pipes:
-            pipe.send(('close', None))
+            pipe.send((u'close', None))
         for pipe in self.parent_pipes:
             pipe.recv()
             pipe.close()
         for proc in self.procs:
             proc.join()
 
-    def get_images(self, mode='human'):
+    def get_images(self, mode=u'human'):
         for pipe in self.parent_pipes:
-            pipe.send(('render', None))
+            pipe.send((u'render', None))
         return [pipe.recv() for pipe in self.parent_pipes]
 
     def _decode_obses(self, obs):
@@ -103,7 +106,7 @@ class ShmemVecEnv(VecEnv):
 
 
 def _subproc_worker(pipe, parent_pipe, env_fn_wrapper, obs_bufs, obs_shapes, obs_dtypes, keys):
-    """
+    u"""
     Control a single environment instance using IPC and
     shared memory.
     """
@@ -119,21 +122,21 @@ def _subproc_worker(pipe, parent_pipe, env_fn_wrapper, obs_bufs, obs_shapes, obs
     try:
         while True:
             cmd, data = pipe.recv()
-            if cmd == 'reset':
+            if cmd == u'reset':
                 pipe.send(_write_obs(env.reset()))
-            elif cmd == 'step':
+            elif cmd == u'step':
                 obs, reward, done, info = env.step(data)
                 if done:
                     obs = env.reset()
                 pipe.send((_write_obs(obs), reward, done, info))
-            elif cmd == 'render':
-                pipe.send(env.render(mode='rgb_array'))
-            elif cmd == 'close':
+            elif cmd == u'render':
+                pipe.send(env.render(mode=u'rgb_array'))
+            elif cmd == u'close':
                 pipe.send(None)
                 break
             else:
-                raise RuntimeError('Got unrecognized cmd %s' % cmd)
+                raise RuntimeError(u'Got unrecognized cmd %s' % cmd)
     except KeyboardInterrupt:
-        print('ShmemVecEnv worker: got KeyboardInterrupt')
+        print u'ShmemVecEnv worker: got KeyboardInterrupt'
     finally:
         env.close()

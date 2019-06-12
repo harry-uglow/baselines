@@ -1,3 +1,5 @@
+from __future__ import with_statement
+from __future__ import absolute_import
 import numpy as np
 import tensorflow as tf
 from baselines.common.policies import nature_cnn
@@ -12,11 +14,11 @@ class AcerCnnPolicy(object):
         ob_shape = (nbatch, nh, nw, nc * nstack)
         nact = ac_space.n
         X = tf.placeholder(tf.uint8, ob_shape)  # obs
-        with tf.variable_scope("model", reuse=reuse):
+        with tf.variable_scope(u"model", reuse=reuse):
             h = nature_cnn(X)
-            pi_logits = fc(h, 'pi', nact, init_scale=0.01)
+            pi_logits = fc(h, u'pi', nact, init_scale=0.01)
             pi = tf.nn.softmax(pi_logits)
-            q = fc(h, 'q', nact)
+            q = fc(h, u'q', nact)
 
         a = sample(tf.nn.softmax(pi_logits))  # could change this to use self.pi instead
         self.initial_state = []  # not stateful
@@ -52,18 +54,18 @@ class AcerLstmPolicy(object):
         X = tf.placeholder(tf.uint8, ob_shape)  # obs
         M = tf.placeholder(tf.float32, [nbatch]) #mask (done t-1)
         S = tf.placeholder(tf.float32, [nenv, nlstm*2]) #states
-        with tf.variable_scope("model", reuse=reuse):
+        with tf.variable_scope(u"model", reuse=reuse):
             h = nature_cnn(X)
 
             # lstm
             xs = batch_to_seq(h, nenv, nsteps)
             ms = batch_to_seq(M, nenv, nsteps)
-            h5, snew = lstm(xs, ms, S, 'lstm1', nh=nlstm)
+            h5, snew = lstm(xs, ms, S, u'lstm1', nh=nlstm)
             h5 = seq_to_batch(h5)
 
-            pi_logits = fc(h5, 'pi', nact, init_scale=0.01)
+            pi_logits = fc(h5, u'pi', nact, init_scale=0.01)
             pi = tf.nn.softmax(pi_logits)
-            q = fc(h5, 'q', nact)
+            q = fc(h5, u'q', nact)
 
         a = sample(pi_logits)  # could change this to use self.pi instead
         self.initial_state = np.zeros((nenv, nlstm*2), dtype=np.float32)

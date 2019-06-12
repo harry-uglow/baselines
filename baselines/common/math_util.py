@@ -1,9 +1,11 @@
+from __future__ import division
+from __future__ import absolute_import
 import numpy as np
 import scipy.signal
 
 
 def discount(x, gamma):
-    """
+    u"""
     computes discounted sums along 0th dimension of x.
 
     inputs
@@ -23,7 +25,7 @@ def discount(x, gamma):
     return scipy.signal.lfilter([1],[1,-gamma],x[::-1], axis=0)[::-1]
 
 def explained_variance(ypred,y):
-    """
+    u"""
     Computes fraction of variance that ypred explains about y.
     Returns 1 - Var[y-ypred] / Var[y]
 
@@ -61,20 +63,20 @@ def unflatten_vector(vec, shapes):
     return arrs
 
 def discount_with_boundaries(X, New, gamma):
-    """
+    u"""
     X: 2d array of floats, time x features
     New: 2d array of bools, indicating when a new episode has started
     """
     Y = np.zeros_like(X)
     T = X.shape[0]
     Y[T-1] = X[T-1]
-    for t in range(T-2, -1, -1):
+    for t in xrange(T-2, -1, -1):
         Y[t] = X[t] + gamma * Y[t+1] * (1 - New[t+1])
     return Y
 
 def test_discount_with_boundaries():
     gamma=0.9
-    x = np.array([1.0, 2.0, 3.0, 4.0], 'float32')
+    x = np.array([1.0, 2.0, 3.0, 4.0], u'float32')
     starts = [1.0, 0.0, 0.0, 1.0]
     y = discount_with_boundaries(x, starts, gamma)
     assert np.allclose(y, [

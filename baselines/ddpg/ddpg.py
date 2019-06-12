@@ -1,3 +1,6 @@
+from __future__ import with_statement
+from __future__ import division
+from __future__ import absolute_import
 import os
 import time
 from collections import deque
@@ -12,6 +15,8 @@ import baselines.common.tf_util as U
 
 from baselines import logger
 import numpy as np
+from itertools import izip
+from io import open
 
 try:
     from mpi4py import MPI
@@ -27,7 +32,7 @@ def learn(network, env,
           reward_scale=1.0,
           render=False,
           render_eval=False,
-          noise_type='adaptive-param_0.2',
+          noise_type=u'adaptive-param_0.2',
           normalize_returns=False,
           normalize_observations=True,
           critic_l2_reg=1e-2,
@@ -67,32 +72,32 @@ def learn(network, env,
     action_noise = None
     param_noise = None
     if noise_type is not None:
-        for current_noise_type in noise_type.split(','):
+        for current_noise_type in noise_type.split(u','):
             current_noise_type = current_noise_type.strip()
-            if current_noise_type == 'none':
+            if current_noise_type == u'none':
                 pass
-            elif 'adaptive-param' in current_noise_type:
-                _, stddev = current_noise_type.split('_')
+            elif u'adaptive-param' in current_noise_type:
+                _, stddev = current_noise_type.split(u'_')
                 param_noise = AdaptiveParamNoiseSpec(initial_stddev=float(stddev), desired_action_stddev=float(stddev))
-            elif 'normal' in current_noise_type:
-                _, stddev = current_noise_type.split('_')
+            elif u'normal' in current_noise_type:
+                _, stddev = current_noise_type.split(u'_')
                 action_noise = NormalActionNoise(mu=np.zeros(nb_actions), sigma=float(stddev) * np.ones(nb_actions))
-            elif 'ou' in current_noise_type:
-                _, stddev = current_noise_type.split('_')
+            elif u'ou' in current_noise_type:
+                _, stddev = current_noise_type.split(u'_')
                 action_noise = OrnsteinUhlenbeckActionNoise(mu=np.zeros(nb_actions), sigma=float(stddev) * np.ones(nb_actions))
             else:
-                raise RuntimeError('unknown noise type "{}"'.format(current_noise_type))
+                raise RuntimeError(u'unknown noise type "{}"'.format(current_noise_type))
 
     max_action = env.action_space.high
-    logger.info('scaling actions by {} before executing in env'.format(max_action))
+    logger.info(u'scaling actions by {} before executing in env'.format(max_action))
 
     agent = DDPG(actor, critic, memory, env.observation_space.shape, env.action_space.shape,
         gamma=gamma, tau=tau, normalize_returns=normalize_returns, normalize_observations=normalize_observations,
         batch_size=batch_size, action_noise=action_noise, param_noise=param_noise, critic_l2_reg=critic_l2_reg,
         actor_lr=actor_lr, critic_lr=critic_lr, enable_popart=popart, clip_norm=clip_norm,
         reward_scale=reward_scale)
-    logger.info('Using agent with the following configuration:')
-    logger.info(str(agent.__dict__.items()))
+    logger.info(u'Using agent with the following configuration:')
+    logger.info(unicode(agent.__dict__.items()))
 
     eval_episode_rewards_history = deque(maxlen=100)
     episode_rewards_history = deque(maxlen=100)
@@ -124,14 +129,14 @@ def learn(network, env,
     epoch_actions = []
     epoch_qs = []
     epoch_episodes = 0
-    for epoch in range(nb_epochs):
-        for cycle in range(nb_epoch_cycles):
+    for epoch in xrange(nb_epochs):
+        for cycle in xrange(nb_epoch_cycles):
             # Perform rollouts.
             if nenvs > 1:
                 # if simulating multiple envs in parallel, impossible to reset agent at the end of the episode in each
                 # of the environments, so resetting here instead
                 agent.reset()
-            for t_rollout in range(nb_rollout_steps):
+            for t_rollout in xrange(nb_rollout_steps):
                 # Predict next action.
                 action, q, _, _ = agent.step(obs, apply_noise=True, compute_Q=True)
 
@@ -156,7 +161,7 @@ def learn(network, env,
 
                 obs = new_obs
 
-                for d in range(len(done)):
+                for d in xrange(len(done)):
                     if done[d]:
                         # Episode done.
                         epoch_episode_rewards.append(episode_reward[d])
@@ -175,7 +180,7 @@ def learn(network, env,
             epoch_actor_losses = []
             epoch_critic_losses = []
             epoch_adaptive_distances = []
-            for t_train in range(nb_train_steps):
+            for t_train in xrange(nb_train_steps):
                 # Adapt param noise, if necessary.
                 if memory.nb_entries >= batch_size and t_train % param_noise_adaption_interval == 0:
                     distance = agent.adapt_param_noise()
@@ -192,7 +197,7 @@ def learn(network, env,
             if eval_env is not None:
                 nenvs_eval = eval_obs.shape[0]
                 eval_episode_reward = np.zeros(nenvs_eval, dtype = np.float32)
-                for t_rollout in range(nb_eval_steps):
+                for t_rollout in xrange(nb_eval_steps):
                     eval_action, eval_q, _, _ = agent.step(eval_obs, apply_noise=False, compute_Q=True)
                     eval_obs, eval_r, eval_done, eval_info = eval_env.step(max_action * eval_action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
                     if render_eval:
@@ -200,7 +205,7 @@ def learn(network, env,
                     eval_episode_reward += eval_r
 
                     eval_qs.append(eval_q)
-                    for d in range(len(eval_done)):
+                    for d in xrange(len(eval_done)):
                         if eval_done[d]:
                             eval_episode_rewards.append(eval_episode_reward[d])
                             eval_episode_rewards_history.append(eval_episode_reward[d])
@@ -216,25 +221,25 @@ def learn(network, env,
         duration = time.time() - start_time
         stats = agent.get_stats()
         combined_stats = stats.copy()
-        combined_stats['rollout/return'] = np.mean(epoch_episode_rewards)
-        combined_stats['rollout/return_history'] = np.mean(episode_rewards_history)
-        combined_stats['rollout/episode_steps'] = np.mean(epoch_episode_steps)
-        combined_stats['rollout/actions_mean'] = np.mean(epoch_actions)
-        combined_stats['rollout/Q_mean'] = np.mean(epoch_qs)
-        combined_stats['train/loss_actor'] = np.mean(epoch_actor_losses)
-        combined_stats['train/loss_critic'] = np.mean(epoch_critic_losses)
-        combined_stats['train/param_noise_distance'] = np.mean(epoch_adaptive_distances)
-        combined_stats['total/duration'] = duration
-        combined_stats['total/steps_per_second'] = float(t) / float(duration)
-        combined_stats['total/episodes'] = episodes
-        combined_stats['rollout/episodes'] = epoch_episodes
-        combined_stats['rollout/actions_std'] = np.std(epoch_actions)
+        combined_stats[u'rollout/return'] = np.mean(epoch_episode_rewards)
+        combined_stats[u'rollout/return_history'] = np.mean(episode_rewards_history)
+        combined_stats[u'rollout/episode_steps'] = np.mean(epoch_episode_steps)
+        combined_stats[u'rollout/actions_mean'] = np.mean(epoch_actions)
+        combined_stats[u'rollout/Q_mean'] = np.mean(epoch_qs)
+        combined_stats[u'train/loss_actor'] = np.mean(epoch_actor_losses)
+        combined_stats[u'train/loss_critic'] = np.mean(epoch_critic_losses)
+        combined_stats[u'train/param_noise_distance'] = np.mean(epoch_adaptive_distances)
+        combined_stats[u'total/duration'] = duration
+        combined_stats[u'total/steps_per_second'] = float(t) / float(duration)
+        combined_stats[u'total/episodes'] = episodes
+        combined_stats[u'rollout/episodes'] = epoch_episodes
+        combined_stats[u'rollout/actions_std'] = np.std(epoch_actions)
         # Evaluation statistics.
         if eval_env is not None:
-            combined_stats['eval/return'] = eval_episode_rewards
-            combined_stats['eval/return_history'] = np.mean(eval_episode_rewards_history)
-            combined_stats['eval/Q'] = eval_qs
-            combined_stats['eval/episodes'] = len(eval_episode_rewards)
+            combined_stats[u'eval/return'] = eval_episode_rewards
+            combined_stats[u'eval/return_history'] = np.mean(eval_episode_rewards_history)
+            combined_stats[u'eval/Q'] = eval_qs
+            combined_stats[u'eval/episodes'] = len(eval_episode_rewards)
         def as_scalar(x):
             if isinstance(x, np.ndarray):
                 assert x.size == 1
@@ -242,31 +247,31 @@ def learn(network, env,
             elif np.isscalar(x):
                 return x
             else:
-                raise ValueError('expected scalar, got %s'%x)
+                raise ValueError(u'expected scalar, got %s'%x)
 
         combined_stats_sums = np.array([ np.array(x).flatten()[0] for x in combined_stats.values()])
         if MPI is not None:
             combined_stats_sums = MPI.COMM_WORLD.allreduce(combined_stats_sums)
 
-        combined_stats = {k : v / mpi_size for (k,v) in zip(combined_stats.keys(), combined_stats_sums)}
+        combined_stats = dict((k, v / mpi_size) for (k,v) in izip(combined_stats.keys(), combined_stats_sums))
 
         # Total statistics.
-        combined_stats['total/epochs'] = epoch + 1
-        combined_stats['total/steps'] = t
+        combined_stats[u'total/epochs'] = epoch + 1
+        combined_stats[u'total/steps'] = t
 
         for key in sorted(combined_stats.keys()):
             logger.record_tabular(key, combined_stats[key])
 
         if rank == 0:
             logger.dump_tabular()
-        logger.info('')
+        logger.info(u'')
         logdir = logger.get_dir()
         if rank == 0 and logdir:
-            if hasattr(env, 'get_state'):
-                with open(os.path.join(logdir, 'env_state.pkl'), 'wb') as f:
+            if hasattr(env, u'get_state'):
+                with open(os.path.join(logdir, u'env_state.pkl'), u'wb') as f:
                     pickle.dump(env.get_state(), f)
-            if eval_env and hasattr(eval_env, 'get_state'):
-                with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as f:
+            if eval_env and hasattr(eval_env, u'get_state'):
+                with open(os.path.join(logdir, u'eval_env_state.pkl'), u'wb') as f:
                     pickle.dump(eval_env.get_state(), f)
 
 

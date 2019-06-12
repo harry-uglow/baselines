@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import numpy as np
 from baselines.common.runners import AbstractEnvRunner
 from baselines.common.vec_env.vec_frame_stack import VecFrameStack
@@ -7,8 +8,8 @@ from gym import spaces
 class Runner(AbstractEnvRunner):
 
     def __init__(self, env, model, nsteps):
-        super().__init__(env=env, model=model, nsteps=nsteps)
-        assert isinstance(env.action_space, spaces.Discrete), 'This ACER implementation works only with discrete action spaces!'
+        super(Runner, self).__init__(env=env, model=model, nsteps=nsteps)
+        assert isinstance(env.action_space, spaces.Discrete), u'This ACER implementation works only with discrete action spaces!'
         assert isinstance(env, VecFrameStack)
 
         self.nact = env.action_space.n
@@ -27,7 +28,7 @@ class Runner(AbstractEnvRunner):
         # enc_obs = np.split(self.obs, self.nstack, axis=3)  # so now list of obs steps
         enc_obs = np.split(self.env.stackedobs, self.env.nstack, axis=-1)
         mb_obs, mb_actions, mb_mus, mb_dones, mb_rewards = [], [], [], [], []
-        for _ in range(self.nsteps):
+        for _ in xrange(self.nsteps):
             actions, mus, states = self.model._step(self.obs, S=self.states, M=self.dones)
             mb_obs.append(np.copy(self.obs))
             mb_actions.append(actions)

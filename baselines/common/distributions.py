@@ -1,11 +1,15 @@
+from __future__ import division
+from __future__ import absolute_import
 import tensorflow as tf
 import numpy as np
 import baselines.common.tf_util as U
 from baselines.a2c.utils import fc
 from tensorflow.python.ops import math_ops
+from itertools import izip
+from itertools import imap
 
 class Pd(object):
-    """
+    u"""
     A particular probability distribution
     """
     def flatparam(self):
@@ -32,7 +36,7 @@ class Pd(object):
         return self.__class__(self.flatparam()[idx])
 
 class PdType(object):
-    """
+    u"""
     Parametrized family of probability distributions
     """
     def pdclass(self):
@@ -62,7 +66,7 @@ class CategoricalPdType(PdType):
     def pdclass(self):
         return CategoricalPd
     def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0):
-        pdparam = _matching_fc(latent_vector, 'pi', self.ncat, init_scale=init_scale, init_bias=init_bias)
+        pdparam = _matching_fc(latent_vector, u'pi', self.ncat, init_scale=init_scale, init_bias=init_bias)
         return self.pdfromflat(pdparam), pdparam
 
     def param_shape(self):
@@ -75,7 +79,7 @@ class CategoricalPdType(PdType):
 
 class MultiCategoricalPdType(PdType):
     def __init__(self, nvec):
-        self.ncats = nvec.astype('int32')
+        self.ncats = nvec.astype(u'int32')
         assert (self.ncats > 0).all()
     def pdclass(self):
         return MultiCategoricalPd
@@ -83,7 +87,7 @@ class MultiCategoricalPdType(PdType):
         return MultiCategoricalPd(self.ncats, flat)
 
     def pdfromlatent(self, latent, init_scale=1.0, init_bias=0.0):
-        pdparam = _matching_fc(latent, 'pi', self.ncats.sum(), init_scale=init_scale, init_bias=init_bias)
+        pdparam = _matching_fc(latent, u'pi', self.ncats.sum(), init_scale=init_scale, init_bias=init_bias)
         return self.pdfromflat(pdparam), pdparam
 
     def param_shape(self):
@@ -100,8 +104,8 @@ class DiagGaussianPdType(PdType):
         return DiagGaussianPd
 
     def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0):
-        mean = _matching_fc(latent_vector, 'pi', self.size, init_scale=init_scale, init_bias=init_bias)
-        logstd = tf.get_variable(name='pi/logstd', shape=[1, self.size], initializer=tf.zeros_initializer())
+        mean = _matching_fc(latent_vector, u'pi', self.size, init_scale=init_scale, init_bias=init_bias)
+        logstd = tf.get_variable(name=u'pi/logstd', shape=[1, self.size], initializer=tf.zeros_initializer())
         pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
         return self.pdfromflat(pdparam), mean
 
@@ -124,7 +128,7 @@ class BernoulliPdType(PdType):
     def sample_dtype(self):
         return tf.int32
     def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0):
-        pdparam = _matching_fc(latent_vector, 'pi', self.size, init_scale=init_scale, init_bias=init_bias)
+        pdparam = _matching_fc(latent_vector, u'pi', self.size, init_scale=init_scale, init_bias=init_bias)
         return self.pdfromflat(pdparam), pdparam
 
 # WRONG SECOND DERIVATIVES
@@ -165,13 +169,13 @@ class CategoricalPd(Pd):
         # return tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=x)
         # Note: we can't use sparse_softmax_cross_entropy_with_logits because
         #       the implementation does not allow second-order derivatives...
-        if x.dtype in {tf.uint8, tf.int32, tf.int64}:
+        if x.dtype in set([tf.uint8, tf.int32, tf.int64]):
             # one-hot encoding
             x_shape_list = x.shape.as_list()
             logits_shape_list = self.logits.get_shape().as_list()[:-1]
-            for xs, ls in zip(x_shape_list, logits_shape_list):
+            for xs, ls in izip(x_shape_list, logits_shape_list):
                 if xs is not None and ls is not None:
-                    assert xs == ls, 'shape mismatch: {} in x vs {} in logits'.format(xs, ls)
+                    assert xs == ls, u'shape mismatch: {} in x vs {} in logits'.format(xs, ls)
 
             x = tf.one_hot(x, self.logits.get_shape().as_list()[-1])
         else:
@@ -206,16 +210,16 @@ class CategoricalPd(Pd):
 class MultiCategoricalPd(Pd):
     def __init__(self, nvec, flat):
         self.flat = flat
-        self.categoricals = list(map(CategoricalPd,
+        self.categoricals = list(imap(CategoricalPd,
             tf.split(flat, np.array(nvec, dtype=np.int32), axis=-1)))
     def flatparam(self):
         return self.flat
     def mode(self):
         return tf.cast(tf.stack([p.mode() for p in self.categoricals], axis=-1), tf.int32)
     def neglogp(self, x):
-        return tf.add_n([p.neglogp(px) for p, px in zip(self.categoricals, tf.unstack(x, axis=-1))])
+        return tf.add_n([p.neglogp(px) for p, px in izip(self.categoricals, tf.unstack(x, axis=-1))])
     def kl(self, other):
-        return tf.add_n([p.kl(q) for p, q in zip(self.categoricals, other.categoricals)])
+        return tf.add_n([p.kl(q) for p, q in izip(self.categoricals, other.categoricals)])
     def entropy(self):
         return tf.add_n([p.entropy() for p in self.categoricals])
     def sample(self):
@@ -345,7 +349,7 @@ def validate_probtype(probtype, pdparam):
     klval_ll = - entval - logliks.mean() #pylint: disable=E1101
     klval_ll_stderr = logliks.std() / np.sqrt(N) #pylint: disable=E1101
     assert np.abs(klval - klval_ll) < 3 * klval_ll_stderr # within 3 sigmas
-    print('ok on', probtype, pdparam)
+    print u'ok on', probtype, pdparam
 
 
 def _matching_fc(tensor, name, size, init_scale, init_bias):

@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import pytest
 from baselines.common.tests.envs.identity_env import DiscreteIdentityEnv, BoxIdentityEnv, MultiDiscreteIdentityEnv
 from baselines.run import get_learn_function
@@ -5,29 +6,29 @@ from baselines.common.tests.util import simple_test
 
 common_kwargs = dict(
     total_timesteps=30000,
-    network='mlp',
+    network=u'mlp',
     gamma=0.9,
     seed=0,
 )
 
 learn_kwargs = {
-    'a2c' : {},
-    'acktr': {},
-    'deepq': {},
-    'ddpg': dict(layer_norm=True),
-    'ppo2': dict(lr=1e-3, nsteps=64, ent_coef=0.0),
-    'trpo_mpi': dict(timesteps_per_batch=100, cg_iters=10, gamma=0.9, lam=1.0, max_kl=0.01)
+    u'a2c' : {},
+    u'acktr': {},
+    u'deepq': {},
+    u'ddpg': dict(layer_norm=True),
+    u'ppo2': dict(lr=1e-3, nsteps=64, ent_coef=0.0),
+    u'trpo_mpi': dict(timesteps_per_batch=100, cg_iters=10, gamma=0.9, lam=1.0, max_kl=0.01)
 }
 
 
-algos_disc = ['a2c', 'acktr', 'deepq', 'ppo2', 'trpo_mpi']
-algos_multidisc = ['a2c', 'acktr', 'ppo2', 'trpo_mpi']
-algos_cont = ['a2c', 'acktr', 'ddpg',  'ppo2', 'trpo_mpi']
+algos_disc = [u'a2c', u'acktr', u'deepq', u'ppo2', u'trpo_mpi']
+algos_multidisc = [u'a2c', u'acktr', u'ppo2', u'trpo_mpi']
+algos_cont = [u'a2c', u'acktr', u'ddpg',  u'ppo2', u'trpo_mpi']
 
 @pytest.mark.slow
-@pytest.mark.parametrize("alg", algos_disc)
+@pytest.mark.parametrize(u"alg", algos_disc)
 def test_discrete_identity(alg):
-    '''
+    u'''
     Test if the algorithm (with an mlp policy)
     can learn an identity transformation (i.e. return observation as an action)
     '''
@@ -40,9 +41,9 @@ def test_discrete_identity(alg):
     simple_test(env_fn, learn_fn, 0.9)
 
 @pytest.mark.slow
-@pytest.mark.parametrize("alg", algos_multidisc)
+@pytest.mark.parametrize(u"alg", algos_multidisc)
 def test_multidiscrete_identity(alg):
-    '''
+    u'''
     Test if the algorithm (with an mlp policy)
     can learn an identity transformation (i.e. return observation as an action)
     '''
@@ -55,9 +56,9 @@ def test_multidiscrete_identity(alg):
     simple_test(env_fn, learn_fn, 0.9)
 
 @pytest.mark.slow
-@pytest.mark.parametrize("alg", algos_cont)
+@pytest.mark.parametrize(u"alg", algos_cont)
 def test_continuous_identity(alg):
-    '''
+    u'''
     Test if the algorithm (with an mlp policy)
     can learn an identity transformation (i.e. return observation as an action)
     to a required precision
@@ -70,6 +71,6 @@ def test_continuous_identity(alg):
     env_fn = lambda: BoxIdentityEnv((1,), episode_len=100)
     simple_test(env_fn, learn_fn, -0.1)
 
-if __name__ == '__main__':
-    test_multidiscrete_identity('acktr')
+if __name__ == u'__main__':
+    test_multidiscrete_identity(u'acktr')
 

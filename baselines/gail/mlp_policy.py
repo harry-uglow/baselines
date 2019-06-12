@@ -1,8 +1,11 @@
-'''
+u'''
 from baselines/ppo1/mlp_policy.py and add simple modification
 (1) add reuse argument
 (2) cache the `stochastic` placeholder
 '''
+from __future__ import division
+from __future__ import with_statement
+from __future__ import absolute_import
 import tensorflow as tf
 import gym
 
@@ -28,27 +31,27 @@ class MlpPolicy(object):
         self.pdtype = pdtype = make_pdtype(ac_space)
         sequence_length = None
 
-        ob = U.get_placeholder(name="ob", dtype=tf.float32, shape=[sequence_length] + list(ob_space.shape))
+        ob = U.get_placeholder(name=u"ob", dtype=tf.float32, shape=[sequence_length] + list(ob_space.shape))
 
-        with tf.variable_scope("obfilter"):
+        with tf.variable_scope(u"obfilter"):
             self.ob_rms = RunningMeanStd(shape=ob_space.shape)
 
         obz = tf.clip_by_value((ob - self.ob_rms.mean) / self.ob_rms.std, -5.0, 5.0)
         last_out = obz
-        for i in range(num_hid_layers):
-            last_out = tf.nn.tanh(dense(last_out, hid_size, "vffc%i" % (i+1), weight_init=U.normc_initializer(1.0)))
-        self.vpred = dense(last_out, 1, "vffinal", weight_init=U.normc_initializer(1.0))[:, 0]
+        for i in xrange(num_hid_layers):
+            last_out = tf.nn.tanh(dense(last_out, hid_size, u"vffc%i" % (i+1), weight_init=U.normc_initializer(1.0)))
+        self.vpred = dense(last_out, 1, u"vffinal", weight_init=U.normc_initializer(1.0))[:, 0]
 
         last_out = obz
-        for i in range(num_hid_layers):
-            last_out = tf.nn.tanh(dense(last_out, hid_size, "polfc%i" % (i+1), weight_init=U.normc_initializer(1.0)))
+        for i in xrange(num_hid_layers):
+            last_out = tf.nn.tanh(dense(last_out, hid_size, u"polfc%i" % (i+1), weight_init=U.normc_initializer(1.0)))
 
         if gaussian_fixed_var and isinstance(ac_space, gym.spaces.Box):
-            mean = dense(last_out, pdtype.param_shape()[0]//2, "polfinal", U.normc_initializer(0.01))
-            logstd = tf.get_variable(name="logstd", shape=[1, pdtype.param_shape()[0]//2], initializer=tf.zeros_initializer())
+            mean = dense(last_out, pdtype.param_shape()[0]//2, u"polfinal", U.normc_initializer(0.01))
+            logstd = tf.get_variable(name=u"logstd", shape=[1, pdtype.param_shape()[0]//2], initializer=tf.zeros_initializer())
             pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
         else:
-            pdparam = dense(last_out, pdtype.param_shape()[0], "polfinal", U.normc_initializer(0.01))
+            pdparam = dense(last_out, pdtype.param_shape()[0], u"polfinal", U.normc_initializer(0.01))
 
         self.pd = pdtype.pdfromflat(pdparam)
 
@@ -56,7 +59,7 @@ class MlpPolicy(object):
         self.state_out = []
 
         # change for BC
-        stochastic = U.get_placeholder(name="stochastic", dtype=tf.bool, shape=())
+        stochastic = U.get_placeholder(name=u"stochastic", dtype=tf.bool, shape=())
         ac = U.switch(stochastic, self.pd.sample(), self.pd.mode())
         self.ac = ac
         self._act = U.function([stochastic, ob], [ac, self.vpred])

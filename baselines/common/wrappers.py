@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import gym
 
 class TimeLimit(gym.Wrapper):
@@ -11,7 +12,7 @@ class TimeLimit(gym.Wrapper):
         self._elapsed_steps += 1
         if self._elapsed_steps >= self._max_episode_steps:
             done = True
-            info['TimeLimit.truncated'] = True
+            info[u'TimeLimit.truncated'] = True
         return observation, reward, done, info
 
     def reset(self, **kwargs):

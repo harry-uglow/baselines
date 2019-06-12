@@ -1,7 +1,8 @@
-"""
+u"""
 Helpers for dealing with vectorized environments.
 """
 
+from __future__ import absolute_import
 from collections import OrderedDict
 
 import gym
@@ -9,24 +10,24 @@ import numpy as np
 
 
 def copy_obs_dict(obs):
-    """
+    u"""
     Deep-copy an observation dict.
     """
-    return {k: np.copy(v) for k, v in obs.items()}
+    return dict((k, np.copy(v)) for k, v in obs.items())
 
 
 def dict_to_obs(obs_dict):
-    """
+    u"""
     Convert an observation dict into a raw array if the
     original observation space was not a Dict space.
     """
-    if set(obs_dict.keys()) == {None}:
+    if set(obs_dict.keys()) == set([None]):
         return obs_dict[None]
     return obs_dict
 
 
 def obs_space_info(obs_space):
-    """
+    u"""
     Get dict-structured information about a gym.Space.
 
     Returns:
@@ -51,7 +52,7 @@ def obs_space_info(obs_space):
 
 
 def obs_to_dict(obs):
-    """
+    u"""
     Convert an observation into a dict.
     """
     if isinstance(obs, dict):

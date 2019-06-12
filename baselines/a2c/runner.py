@@ -1,9 +1,11 @@
+from __future__ import absolute_import
 import numpy as np
 from baselines.a2c.utils import discount_with_dones
 from baselines.common.runners import AbstractEnvRunner
+from itertools import izip
 
 class Runner(AbstractEnvRunner):
-    """
+    u"""
     We use this class to generate batches of experiences
 
     __init__:
@@ -13,7 +15,7 @@ class Runner(AbstractEnvRunner):
     - Make a mini batch of experiences
     """
     def __init__(self, env, model, nsteps=5, gamma=0.99):
-        super().__init__(env=env, model=model, nsteps=nsteps)
+        super(Runner, self).__init__(env=env, model=model, nsteps=nsteps)
         self.gamma = gamma
         self.batch_action_shape = [x if x is not None else -1 for x in model.train_model.action.shape.as_list()]
         self.ob_dtype = model.train_model.X.dtype.as_numpy_dtype
@@ -23,7 +25,7 @@ class Runner(AbstractEnvRunner):
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones = [],[],[],[],[]
         mb_states = self.states
         epinfos = []
-        for n in range(self.nsteps):
+        for n in xrange(self.nsteps):
             # Given observations, take action and value (V(s))
             # We already have self.obs because Runner superclass run self.obs[:] = env.reset() on init
             actions, values, states, _ = self.model.step(self.obs, S=self.states, M=self.dones)
@@ -37,7 +39,7 @@ class Runner(AbstractEnvRunner):
             # Take actions in env and look the results
             obs, rewards, dones, infos = self.env.step(actions)
             for info in infos:
-                maybeepinfo = info.get('episode')
+                maybeepinfo = info.get(u'episode')
                 if maybeepinfo: epinfos.append(maybeepinfo)
             self.states = states
             self.dones = dones
@@ -58,7 +60,7 @@ class Runner(AbstractEnvRunner):
         if self.gamma > 0.0:
             # Discount/bootstrap off value fn
             last_values = self.model.value(self.obs, S=self.states, M=self.dones).tolist()
-            for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
+            for n, (rewards, dones, value) in enumerate(izip(mb_rewards, mb_dones, last_values)):
                 rewards = rewards.tolist()
                 dones = dones.tolist()
                 if dones[-1] == 0:

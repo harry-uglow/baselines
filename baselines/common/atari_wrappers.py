@@ -1,6 +1,8 @@
+from __future__ import division
+from __future__ import absolute_import
 import numpy as np
 import os
-os.environ.setdefault('PATH', '')
+os.environ.setdefault(u'PATH', u'')
 from collections import deque
 import gym
 from gym import spaces
@@ -11,17 +13,17 @@ from .wrappers import TimeLimit
 
 class NoopResetEnv(gym.Wrapper):
     def __init__(self, env, noop_max=30):
-        """Sample initial states by taking random number of no-ops on reset.
+        u"""Sample initial states by taking random number of no-ops on reset.
         No-op is assumed to be action 0.
         """
         gym.Wrapper.__init__(self, env)
         self.noop_max = noop_max
         self.override_num_noops = None
         self.noop_action = 0
-        assert env.unwrapped.get_action_meanings()[0] == 'NOOP'
+        assert env.unwrapped.get_action_meanings()[0] == u'NOOP'
 
     def reset(self, **kwargs):
-        """ Do no-op action for a number of steps in [1, noop_max]."""
+        u""" Do no-op action for a number of steps in [1, noop_max]."""
         self.env.reset(**kwargs)
         if self.override_num_noops is not None:
             noops = self.override_num_noops
@@ -29,7 +31,7 @@ class NoopResetEnv(gym.Wrapper):
             noops = self.unwrapped.np_random.randint(1, self.noop_max + 1) #pylint: disable=E1101
         assert noops > 0
         obs = None
-        for _ in range(noops):
+        for _ in xrange(noops):
             obs, _, done, _ = self.env.step(self.noop_action)
             if done:
                 obs = self.env.reset(**kwargs)
@@ -40,9 +42,9 @@ class NoopResetEnv(gym.Wrapper):
 
 class FireResetEnv(gym.Wrapper):
     def __init__(self, env):
-        """Take action on reset for environments that are fixed until firing."""
+        u"""Take action on reset for environments that are fixed until firing."""
         gym.Wrapper.__init__(self, env)
-        assert env.unwrapped.get_action_meanings()[1] == 'FIRE'
+        assert env.unwrapped.get_action_meanings()[1] == u'FIRE'
         assert len(env.unwrapped.get_action_meanings()) >= 3
 
     def reset(self, **kwargs):
@@ -60,7 +62,7 @@ class FireResetEnv(gym.Wrapper):
 
 class EpisodicLifeEnv(gym.Wrapper):
     def __init__(self, env):
-        """Make end-of-life == end-of-episode, but only reset on true game over.
+        u"""Make end-of-life == end-of-episode, but only reset on true game over.
         Done by DeepMind for the DQN and co. since it helps value estimation.
         """
         gym.Wrapper.__init__(self, env)
@@ -82,7 +84,7 @@ class EpisodicLifeEnv(gym.Wrapper):
         return obs, reward, done, info
 
     def reset(self, **kwargs):
-        """Reset only when lives are exhausted.
+        u"""Reset only when lives are exhausted.
         This way all states are still reachable even though lives are episodic,
         and the learner need not know about any of this behind-the-scenes.
         """
@@ -96,17 +98,17 @@ class EpisodicLifeEnv(gym.Wrapper):
 
 class MaxAndSkipEnv(gym.Wrapper):
     def __init__(self, env, skip=4):
-        """Return only every `skip`-th frame"""
+        u"""Return only every `skip`-th frame"""
         gym.Wrapper.__init__(self, env)
         # most recent raw observations (for max pooling across time steps)
         self._obs_buffer = np.zeros((2,)+env.observation_space.shape, dtype=np.uint8)
         self._skip       = skip
 
     def step(self, action):
-        """Repeat action, sum reward, and max over last observations."""
+        u"""Repeat action, sum reward, and max over last observations."""
         total_reward = 0.0
         done = None
-        for i in range(self._skip):
+        for i in xrange(self._skip):
             obs, reward, done, info = self.env.step(action)
             if i == self._skip - 2: self._obs_buffer[0] = obs
             if i == self._skip - 1: self._obs_buffer[1] = obs
@@ -127,12 +129,12 @@ class ClipRewardEnv(gym.RewardWrapper):
         gym.RewardWrapper.__init__(self, env)
 
     def reward(self, reward):
-        """Bin reward to {+1, 0, -1} by its sign."""
+        u"""Bin reward to {+1, 0, -1} by its sign."""
         return np.sign(reward)
 
 class WarpFrame(gym.ObservationWrapper):
     def __init__(self, env, width=84, height=84, grayscale=True):
-        """Warp frames to 84x84 as done in the Nature paper and later work."""
+        u"""Warp frames to 84x84 as done in the Nature paper and later work."""
         gym.ObservationWrapper.__init__(self, env)
         self.width = width
         self.height = height
@@ -154,7 +156,7 @@ class WarpFrame(gym.ObservationWrapper):
 
 class FrameStack(gym.Wrapper):
     def __init__(self, env, k):
-        """Stack k last frames.
+        u"""Stack k last frames.
 
         Returns lazy array, which is much more memory efficient.
 
@@ -170,7 +172,7 @@ class FrameStack(gym.Wrapper):
 
     def reset(self):
         ob = self.env.reset()
-        for _ in range(self.k):
+        for _ in xrange(self.k):
             self.frames.append(ob)
         return self._get_ob()
 
@@ -195,7 +197,7 @@ class ScaledFloatFrame(gym.ObservationWrapper):
 
 class LazyFrames(object):
     def __init__(self, frames):
-        """This object ensures that common frames between the observations are only stored once.
+        u"""This object ensures that common frames between the observations are only stored once.
         It exists purely to optimize memory usage which can be huge for DQN's 1M frames replay
         buffers.
 
@@ -225,7 +227,7 @@ class LazyFrames(object):
 
 def make_atari(env_id, max_episode_steps=None):
     env = gym.make(env_id)
-    assert 'NoFrameskip' in env.spec.id
+    assert u'NoFrameskip' in env.spec.id
     env = NoopResetEnv(env, noop_max=30)
     env = MaxAndSkipEnv(env, skip=4)
     if max_episode_steps is not None:
@@ -233,11 +235,11 @@ def make_atari(env_id, max_episode_steps=None):
     return env
 
 def wrap_deepmind(env, episode_life=True, clip_rewards=True, frame_stack=False, scale=False):
-    """Configure environment for DeepMind-style Atari.
+    u"""Configure environment for DeepMind-style Atari.
     """
     if episode_life:
         env = EpisodicLifeEnv(env)
-    if 'FIRE' in env.unwrapped.get_action_meanings():
+    if u'FIRE' in env.unwrapped.get_action_meanings():
         env = FireResetEnv(env)
     env = WarpFrame(env)
     if scale:

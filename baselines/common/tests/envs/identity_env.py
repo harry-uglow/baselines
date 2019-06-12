@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import numpy as np
 from abc import abstractmethod
 from gym import Env
@@ -50,7 +51,7 @@ class DiscreteIdentityEnv(IdentityEnv):
     ):
 
         self.action_space = Discrete(dim)
-        super().__init__(episode_len=episode_len)
+        super(DiscreteIdentityEnv, self).__init__(episode_len=episode_len)
 
     def _get_reward(self, actions):
         return 1 if self.state == actions else 0
@@ -63,7 +64,7 @@ class MultiDiscreteIdentityEnv(IdentityEnv):
     ):
 
         self.action_space = MultiDiscrete(dims)
-        super().__init__(episode_len=episode_len)
+        super(MultiDiscreteIdentityEnv, self).__init__(episode_len=episode_len)
 
     def _get_reward(self, actions):
         return 1 if all(self.state == actions) else 0
@@ -77,7 +78,7 @@ class BoxIdentityEnv(IdentityEnv):
     ):
 
         self.action_space = Box(low=-1.0, high=1.0, shape=shape, dtype=np.float32)
-        super().__init__(episode_len=episode_len)
+        super(BoxIdentityEnv, self).__init__(episode_len=episode_len)
 
     def _get_reward(self, actions):
         diff = actions - self.state

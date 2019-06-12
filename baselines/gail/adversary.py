@@ -1,28 +1,32 @@
-'''
+u'''
 Reference: https://github.com/openai/imitation
 I follow the architecture from the official repository
 '''
+from __future__ import division
+from __future__ import with_statement
+from __future__ import absolute_import
 import tensorflow as tf
 import numpy as np
 
 from baselines.common.mpi_running_mean_std import RunningMeanStd
 from baselines.common import tf_util as U
+from itertools import izip
 
 def logsigmoid(a):
-    '''Equivalent to tf.log(tf.sigmoid(a))'''
+    u'''Equivalent to tf.log(tf.sigmoid(a))'''
     return -tf.nn.softplus(-a)
 
-""" Reference: https://github.com/openai/imitation/blob/99fbccf3e060b6e6c739bdf209758620fcdefd3c/policyopt/thutil.py#L48-L51"""
+u""" Reference: https://github.com/openai/imitation/blob/99fbccf3e060b6e6c739bdf209758620fcdefd3c/policyopt/thutil.py#L48-L51"""
 def logit_bernoulli_entropy(logits):
     ent = (1.-tf.nn.sigmoid(logits))*logits - logsigmoid(logits)
     return ent
 
 class TransitionClassifier(object):
-    def __init__(self, env, hidden_size, entcoeff=0.001, lr_rate=1e-3, scope="adversary"):
+    def __init__(self, env, hidden_size, entcoeff=0.001, lr_rate=1e-3, scope=u"adversary"):
         self.scope = scope
         self.observation_shape = env.observation_space.shape
         self.actions_shape = env.action_space.shape
-        self.input_shape = tuple([o+a for o, a in zip(self.observation_shape, self.actions_shape)])
+        self.input_shape = tuple([o+a for o, a in izip(self.observation_shape, self.actions_shape)])
         self.num_actions = env.action_space.shape[0]
         self.hidden_size = hidden_size
         self.build_ph()
@@ -45,7 +49,7 @@ class TransitionClassifier(object):
         entropy_loss = -entcoeff*entropy
         # Loss + Accuracy terms
         self.losses = [generator_loss, expert_loss, entropy, entropy_loss, generator_acc, expert_acc]
-        self.loss_name = ["generator_loss", "expert_loss", "entropy", "entropy_loss", "generator_acc", "expert_acc"]
+        self.loss_name = [u"generator_loss", u"expert_loss", u"entropy", u"entropy_loss", u"generator_acc", u"expert_acc"]
         self.total_loss = generator_loss + expert_loss + entropy_loss
         # Build Reward for policy
         self.reward_op = -tf.log(1-tf.nn.sigmoid(generator_logits)+1e-8)
@@ -54,17 +58,17 @@ class TransitionClassifier(object):
                                       self.losses + [U.flatgrad(self.total_loss, var_list)])
 
     def build_ph(self):
-        self.generator_obs_ph = tf.placeholder(tf.float32, (None, ) + self.observation_shape, name="observations_ph")
-        self.generator_acs_ph = tf.placeholder(tf.float32, (None, ) + self.actions_shape, name="actions_ph")
-        self.expert_obs_ph = tf.placeholder(tf.float32, (None, ) + self.observation_shape, name="expert_observations_ph")
-        self.expert_acs_ph = tf.placeholder(tf.float32, (None, ) + self.actions_shape, name="expert_actions_ph")
+        self.generator_obs_ph = tf.placeholder(tf.float32, (None, ) + self.observation_shape, name=u"observations_ph")
+        self.generator_acs_ph = tf.placeholder(tf.float32, (None, ) + self.actions_shape, name=u"actions_ph")
+        self.expert_obs_ph = tf.placeholder(tf.float32, (None, ) + self.observation_shape, name=u"expert_observations_ph")
+        self.expert_acs_ph = tf.placeholder(tf.float32, (None, ) + self.actions_shape, name=u"expert_actions_ph")
 
     def build_graph(self, obs_ph, acs_ph, reuse=False):
         with tf.variable_scope(self.scope):
             if reuse:
                 tf.get_variable_scope().reuse_variables()
 
-            with tf.variable_scope("obfilter"):
+            with tf.variable_scope(u"obfilter"):
                 self.obs_rms = RunningMeanStd(shape=self.observation_shape)
             obs = (obs_ph - self.obs_rms.mean) / self.obs_rms.std
             _input = tf.concat([obs, acs_ph], axis=1)  # concatenate the two input -> form a transition

@@ -1,4 +1,4 @@
 def atari():
     return dict(
-        lrschedule='constant'
+        lrschedule=u'constant'
     )

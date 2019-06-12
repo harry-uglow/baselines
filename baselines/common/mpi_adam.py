@@ -1,3 +1,5 @@
+from __future__ import division
+from __future__ import absolute_import
 import baselines.common.tf_util as U
 import tensorflow as tf
 import numpy as np
@@ -8,15 +10,25 @@ except ImportError:
 
 
 class MpiAdam(object):
-    def __init__(self, var_list, *, beta1=0.9, beta2=0.999, epsilon=1e-08, scale_grad_by_procs=True, comm=None):
+    def __init__(self, var_list, **_3to2kwargs):
+        if 'comm' in _3to2kwargs: comm = _3to2kwargs['comm']; del _3to2kwargs['comm']
+        else: comm = None
+        if 'scale_grad_by_procs' in _3to2kwargs: scale_grad_by_procs = _3to2kwargs['scale_grad_by_procs']; del _3to2kwargs['scale_grad_by_procs']
+        else: scale_grad_by_procs = True
+        if 'epsilon' in _3to2kwargs: epsilon = _3to2kwargs['epsilon']; del _3to2kwargs['epsilon']
+        else: epsilon = 1e-08
+        if 'beta2' in _3to2kwargs: beta2 = _3to2kwargs['beta2']; del _3to2kwargs['beta2']
+        else: beta2 = 0.999
+        if 'beta1' in _3to2kwargs: beta1 = _3to2kwargs['beta1']; del _3to2kwargs['beta1']
+        else: beta1 = 0.9
         self.var_list = var_list
         self.beta1 = beta1
         self.beta2 = beta2
         self.epsilon = epsilon
         self.scale_grad_by_procs = scale_grad_by_procs
         size = sum(U.numel(v) for v in var_list)
-        self.m = np.zeros(size, 'float32')
-        self.v = np.zeros(size, 'float32')
+        self.m = np.zeros(size, u'float32')
+        self.v = np.zeros(size, u'float32')
         self.t = 0
         self.setfromflat = U.SetFromFlat(var_list)
         self.getflat = U.GetFlat(var_list)
@@ -25,7 +37,7 @@ class MpiAdam(object):
     def update(self, localg, stepsize):
         if self.t % 100 == 0:
             self.check_synced()
-        localg = localg.astype('float32')
+        localg = localg.astype(u'float32')
         if self.comm is not None:
             globalg = np.zeros_like(localg)
             self.comm.Allreduce(localg, globalg, op=MPI.SUM)
@@ -65,8 +77,8 @@ def test_MpiAdam():
     np.random.seed(0)
     tf.set_random_seed(0)
 
-    a = tf.Variable(np.random.randn(3).astype('float32'))
-    b = tf.Variable(np.random.randn(2,5).astype('float32'))
+    a = tf.Variable(np.random.randn(3).astype(u'float32'))
+    b = tf.Variable(np.random.randn(2,5).astype(u'float32'))
     loss = tf.reduce_sum(tf.square(a)) + tf.reduce_sum(tf.sin(b))
 
     stepsize = 1e-2
@@ -75,9 +87,9 @@ def test_MpiAdam():
 
     tf.get_default_session().run(tf.global_variables_initializer())
     losslist_ref = []
-    for i in range(10):
+    for i in xrange(10):
         l = do_update()
-        print(i, l)
+        print i, l
         losslist_ref.append(l)
 
 
@@ -90,14 +102,14 @@ def test_MpiAdam():
     adam = MpiAdam(var_list)
 
     losslist_test = []
-    for i in range(10):
+    for i in xrange(10):
         l,g = lossandgrad()
         adam.update(g, stepsize)
-        print(i,l)
+        print i,l
         losslist_test.append(l)
 
     np.testing.assert_allclose(np.array(losslist_ref), np.array(losslist_test), atol=1e-4)
 
 
-if __name__ == '__main__':
+if __name__ == u'__main__':
     test_MpiAdam()
